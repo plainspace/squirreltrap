@@ -13,8 +13,6 @@ struct IntentRowView: View {
     @State private var isShowingReminderPicker = false
     @State private var isShowingColorPicker = false
 
-    private static let colorGridColumns = Array(repeating: GridItem(.fixed(28), spacing: 6), count: 4)
-
     /// Not private — PreferencesView's "Default Alarm" picker reuses this
     /// exact same list, so the two stay in sync automatically.
     static let reminderDurations: [(label: String, seconds: TimeInterval)] = [
@@ -146,27 +144,10 @@ struct IntentRowView: View {
         .help(entry.colorTag != nil ? "Change or remove color" : "Assign a color")
         .accessibilityLabel(entry.colorTag != nil ? "Change or remove color" : "Assign a color")
         .popover(isPresented: $isShowingColorPicker) {
-            LazyVGrid(columns: Self.colorGridColumns, spacing: 6) {
-                ForEach(TodoColorTag.allCases, id: \.self) { tag in
-                    Button {
-                        onSetColor(entry.colorTag == tag ? nil : tag)
-                        isShowingColorPicker = false
-                    } label: {
-                        Circle()
-                            .fill(tag.color)
-                            .frame(width: 24, height: 24)
-                            .overlay {
-                                if entry.colorTag == tag {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.white)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                }
+            ColorTagGridPicker(selected: entry.colorTag) { newTag in
+                onSetColor(newTag)
+                isShowingColorPicker = false
             }
-            .padding(12)
         }
     }
 }

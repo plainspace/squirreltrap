@@ -10,6 +10,7 @@ struct PreferencesGeneralTab: View {
 
     @State private var showingClearCompletedConfirm = false
     @State private var showingClearAllConfirm = false
+    @State private var isShowingDefaultColorPicker = false
 
     private var hasActiveConfirmation: Bool {
         showingClearCompletedConfirm || showingClearAllConfirm
@@ -83,6 +84,28 @@ struct PreferencesGeneralTab: View {
                         .pickerStyle(.menu)
                         .labelsHidden()
                         .fixedSize()
+                    }
+                }
+            }
+
+            GridRow {
+                Text("Default Color")
+                    .foregroundStyle(Color.panelTextSecondary)
+                    .lineLimit(1)
+                Button {
+                    isShowingDefaultColorPicker = true
+                } label: {
+                    Image(systemName: preferences.defaultColorTag != nil ? "paintpalette.fill" : "paintpalette")
+                        .font(.system(size: 13))
+                        .foregroundStyle(preferences.defaultColorTag?.color ?? Color.accentColor.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+                .help("New to-dos automatically get this color -- tap the selected swatch again to clear it")
+                .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
+                .popover(isPresented: $isShowingDefaultColorPicker) {
+                    ColorTagGridPicker(selected: preferences.defaultColorTag) { newTag in
+                        preferences.defaultColorTag = newTag
+                        isShowingDefaultColorPicker = false
                     }
                 }
             }

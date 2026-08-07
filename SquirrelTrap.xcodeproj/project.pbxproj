@@ -42,6 +42,7 @@
 		5FA1B2C3D4E5F607080900C3 /* PreferencesActivityTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090039 /* PreferencesActivityTab.swift */; };
 		5FA1B2C3D4E5F607080900C4 /* DebugBuildTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003A /* DebugBuildTag.swift */; };
 		5FA1B2C3D4E5F607080900C5 /* CelebrationTiming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003B /* CelebrationTiming.swift */; };
+		5FA1B2C3D4E5F607080900C6 /* ColorTagGridPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003C /* ColorTagGridPicker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -79,6 +80,7 @@
 		5FA1B2C3D4E5F60708090039 /* PreferencesActivityTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesActivityTab.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F6070809003A /* DebugBuildTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugBuildTag.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F6070809003B /* CelebrationTiming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationTiming.swift; sourceTree = "<group>"; };
+		5FA1B2C3D4E5F6070809003C /* ColorTagGridPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTagGridPicker.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090025 /* SnoozeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeButton.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090026 /* CloudSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncEngine.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090030 /* SquirrelTrap-Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "SquirrelTrap-Release.entitlements"; sourceTree = "<group>"; };
@@ -165,6 +167,7 @@
 				5FA1B2C3D4E5F60708090019 /* PromptPanelViewModel.swift */,
 				5FA1B2C3D4E5F60708090015 /* PromptPanelView.swift */,
 				5FA1B2C3D4E5F60708090016 /* IntentRowView.swift */,
+				5FA1B2C3D4E5F6070809003C /* ColorTagGridPicker.swift */,
 				5FA1B2C3D4E5F60708090022 /* PendingRowView.swift */,
 				5FA1B2C3D4E5F60708090017 /* PermissionRequestView.swift */,
 				5FA1B2C3D4E5F6070809001C /* PreferencesView.swift */,
@@ -285,6 +288,7 @@
 				5FA1B2C3D4E5F607080900C3 /* PreferencesActivityTab.swift in Sources */,
 				5FA1B2C3D4E5F607080900C4 /* DebugBuildTag.swift in Sources */,
 				5FA1B2C3D4E5F607080900C5 /* CelebrationTiming.swift in Sources */,
+				5FA1B2C3D4E5F607080900C6 /* ColorTagGridPicker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

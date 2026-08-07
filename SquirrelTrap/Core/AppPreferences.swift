@@ -92,6 +92,13 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(defaultAlarmDurationSeconds, forKey: Keys.defaultAlarmDurationSeconds) }
     }
 
+    /// Applied automatically to every new to-do -- see
+    /// PromptPanelViewModel.addEntryApplyingDefaultAlarm. nil means no
+    /// default, the pre-existing behavior.
+    @Published var defaultColorTag: TodoColorTag? {
+        didSet { UserDefaults.standard.set(defaultColorTag?.rawValue, forKey: Keys.defaultColorTag) }
+    }
+
     /// Opt-in, off by default — single-Mac users don't need this.
     @Published var iCloudSyncEnabled: Bool {
         didSet { UserDefaults.standard.set(iCloudSyncEnabled, forKey: Keys.iCloudSyncEnabled) }
@@ -157,6 +164,7 @@ final class AppPreferences: ObservableObject {
         static let autoSnoozeAfterEntry = "autoSnoozeAfterEntry"
         static let defaultAlarmEnabled = "defaultAlarmEnabled"
         static let defaultAlarmDurationSeconds = "defaultAlarmDurationSeconds"
+        static let defaultColorTag = "defaultColorTag"
         static let iCloudSyncEnabled = "iCloudSyncEnabled"
         static let hasSetUpCloudSync = "hasSetUpCloudSync"
         static let hasCreatedCloudSubscription = "hasCreatedCloudSubscription"
@@ -222,6 +230,8 @@ final class AppPreferences: ObservableObject {
         } else {
             defaultAlarmDurationSeconds = UserDefaults.standard.double(forKey: Keys.defaultAlarmDurationSeconds)
         }
+
+        defaultColorTag = UserDefaults.standard.string(forKey: Keys.defaultColorTag).flatMap(TodoColorTag.init(rawValue:))
 
         iCloudSyncEnabled = UserDefaults.standard.bool(forKey: Keys.iCloudSyncEnabled)
         hasSetUpCloudSync = UserDefaults.standard.bool(forKey: Keys.hasSetUpCloudSync)
