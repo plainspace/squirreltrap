@@ -230,13 +230,26 @@ final class PanelController: NSObject {
         }
     }
 
+    /// ESC not always dismissing the panel turned out to be the same bug as
+    /// this one: both cancelOperation/onExitCommand/the dismissKey monitor
+    /// AND the text field's first-responder status depend on the panel
+    /// genuinely being the key window, not just visible. The previous
+    /// version of this method only retried makeFirstResponder, which can't
+    /// succeed if the window itself never actually became key -- it would
+    /// just fail silently every attempt until attemptsRemaining ran out.
+    /// Now it checks and re-asserts key-window status on every attempt too.
     private func grabPromptFocus(attemptsRemaining: Int) {
-        guard let contentContainer, let keyView = firstKeyableView(in: contentContainer) else {
-            debugLog("Squirrel Trap DEBUG: [grabPromptFocus] no keyable view yet, attemptsRemaining=\(attemptsRemaining)\n")
+        guard let panel else { return }
+        if !panel.isKeyWindow {
+            panel.makeKeyAndOrderFront(nil)
+            debugLog("Squirrel Trap DEBUG: [grabPromptFocus] re-asserted key window, isKeyWindow=\(panel.isKeyWindow), attemptsRemaining=\(attemptsRemaining)\n")
+        }
+        guard panel.isKeyWindow, let contentContainer, let keyView = firstKeyableView(in: contentContainer) else {
+            debugLog("Squirrel Trap DEBUG: [grabPromptFocus] not ready (isKeyWindow=\(panel.isKeyWindow)), attemptsRemaining=\(attemptsRemaining)\n")
             retryPromptFocusIfPossible(attemptsRemaining: attemptsRemaining)
             return
         }
-        let success = panel?.makeFirstResponder(keyView) ?? false
+        let success = panel.makeFirstResponder(keyView)
         debugLog("Squirrel Trap DEBUG: [grabPromptFocus] makeFirstResponder success=\(success), attemptsRemaining=\(attemptsRemaining)\n")
         if !success {
             retryPromptFocusIfPossible(attemptsRemaining: attemptsRemaining)
