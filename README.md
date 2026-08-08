@@ -35,6 +35,8 @@ Every time you press **Cmd+Tab**, Squirrel Trap pops up a small floating prompt 
 - **Reminders sync** — optionally sync your list with an Apple Reminders list, one-directional or bidirectional, your choice.
 - **iCloud sync** — keep your list in sync across every Mac you use, always bidirectional, powered by CloudKit push notifications for near-instant updates.
 - **Default Alarm** — optionally have every new to-do automatically get a reminder after a set amount of time, no extra tap required.
+- **Color tags** — tag any pending item with one of 16 preset colors, Trello-style, for a quick visual sort at a glance. A **Default Color** setting can apply one automatically to every new to-do.
+- **Streaks & activity** — a quiet day-streak and today's completed count sit on the main panel, with a satisfying little animation each time you finish something. A 7-day activity graph in Preferences shows your best day and your average.
 - **Plays well with Dictation / Wispr Flow** — the text field is a normal macOS text field, so voice-to-text tools work out of the box.
 
 ## Download
@@ -59,7 +61,7 @@ Neither sends anything anywhere else, and both stay off unless you switch them o
 
 ## Feedback
 
-This is an early, personal project — if something breaks or feels off, that's genuinely useful to know. Let me know directly.
+This is an early, personal project — if something breaks or feels off, that's genuinely useful to know. [Open a GitHub Issue](../../issues) or reach me directly.
 
 ## Uninstalling
 
@@ -73,6 +75,10 @@ This is an early, personal project — if something breaks or feels off, that's 
 
 That's everything — Squirrel Trap doesn't touch anything else on your Mac.
 
+
+## License
+
+All rights reserved — see [LICENSE](LICENSE). The source is public for transparency; the download above is the intended way to use the app.
 
 ## Notes
 

@@ -39,31 +39,52 @@ Squirrel Trap needs **Input Monitoring** permission (System Settings → Privacy
 
 ```
 SquirrelTrap/
-├── SquirrelTrapApp.swift           # @main App struct, NSStatusItem + AppDelegate wiring
+├── SquirrelTrapApp.swift             # @main App struct, NSStatusItem + AppDelegate wiring
 ├── Core/
-│   ├── AppSwitchMonitor.swift      # CGEventTap wrapper + gesture debounce state machine
-│   ├── PermissionManager.swift     # Input Monitoring TCC check/request/open-settings
-│   ├── PanelController.swift       # NSPanel + native blur card/close button, show/hide, dismiss wiring
-│   ├── LaunchAtLoginManager.swift  # SMAppService wrapper
-│   ├── AppPreferences.swift        # UserDefaults-backed settings (show menu bar icon, etc.)
-│   └── PreferencesHotkeyMonitor.swift # global Cmd+, listener
+│   ├── AppSwitchMonitor.swift        # CGEventTap wrapper + gesture debounce state machine
+│   ├── PermissionManager.swift       # Input Monitoring TCC check/request/open-settings
+│   ├── PanelController.swift         # NSPanel + native blur card/close button, show/hide, dismiss/focus wiring
+│   ├── LaunchAtLoginManager.swift    # SMAppService wrapper
+│   ├── AppPreferences.swift          # UserDefaults-backed settings
+│   ├── PreferencesHotkeyMonitor.swift # global Cmd+, listener
+│   ├── ReminderScheduler.swift       # per-item local notification alarms
+│   ├── ReminderSyncEngine.swift      # EventKit sync with an Apple Reminders list (title + completion only)
+│   ├── CloudSyncEngine.swift         # CloudKit sync of full entries across your own Macs
+│   ├── UpdateChecker.swift           # polls GitHub Releases for a newer version
+│   ├── ActivityStats.swift           # pure streak / daily-completion-count math, derived from IntentStore.entries
+│   ├── CelebrationTiming.swift       # single adjustable duration for the completion celebration animation
+│   ├── DebugBuildTag.swift           # #if DEBUG-only build tag shown in the main panel header
+│   └── DebugLog.swift                # #if DEBUG-gated stderr logging helper
 ├── Persistence/
-│   ├── IntentEntry.swift           # Codable model: id, text, createdAt, completed, completedAt, favorite
-│   └── IntentStore.swift           # JSON load/save, add/toggle/delete, rolling-window + favorites queries
+│   ├── IntentEntry.swift             # Codable model: id, text, createdAt, completed, completedAt, favorite, colorTag, etc.
+│   ├── IntentStore.swift             # JSON load/save, add/toggle/delete, rolling-window + favorites + activity queries
+│   └── TodoColorTag.swift            # the 16 preset color tags
 └── Views/
     ├── PromptPanelViewModel.swift
-    ├── PromptPanelView.swift       # text field, pending/completed list, favorites view, footer
-    ├── IntentRowView.swift         # one row: checkbox, text, favorite star, delete (if completed)
-    ├── PermissionRequestView.swift # one-time explainer shown when permission is missing
-    ├── PreferencesView.swift       # menu bar toggle, launch at login, Ko-fi button
-    └── KofiButton.swift            # shared support-link button
+    ├── PromptPanelView.swift         # text field, pending/completed list, favorites view, footer, streak/celebration
+    ├── IntentRowView.swift           # one row: checkbox, text, favorite star, reminder/color controls, delete
+    ├── PendingRowView.swift          # wraps IntentRowView with a drag handle + the completion shrink/puff animation
+    ├── ColorTagGridPicker.swift      # shared 4x4 color-swatch grid (per-item picker + Default Color picker)
+    ├── PermissionRequestView.swift   # one-time explainer shown when permission is missing
+    ├── PreferencesView.swift         # sidebar tab container
+    ├── PreferencesTab.swift          # tab enum (General/Appearance/Sync/Activity)
+    ├── PreferencesGeneralTab.swift   # snooze, auto-dismiss, default alarm, default color, clear/quit
+    ├── PreferencesAppearanceTab.swift # menu bar icon, translucency, celebration toggle
+    ├── PreferencesSyncTab.swift      # iCloud sync + entry point into Reminders sync setup
+    ├── PreferencesActivityTab.swift  # 7-day bar chart, best day, average tasks/day
+    ├── ReminderSyncPreferencesView.swift # Reminders sync direction/list picker
+    ├── KofiButton.swift              # shared support-link button
+    ├── SnoozeButton.swift
+    ├── TimeoutComboBox.swift
+    └── GlassTheme.swift              # shared translucent-card styling
 ```
 
 ## Not in v1
 
-- Voice input (typing only for now)
+- Voice input as a distinct feature (typing only — though the text field is a normal macOS field, so dictation/voice-to-text tools already work through it)
 - Replacing/customizing the native Cmd+Tab switcher UI itself
 - Browsing full history beyond the last 20 entries (they're on disk, just not surfaced in the UI yet)
+- Automated tests — none exist yet; everything is verified by hand
 
 ## Distribution
 
