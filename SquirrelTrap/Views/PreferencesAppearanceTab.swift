@@ -3,8 +3,20 @@ import SwiftUI
 struct PreferencesAppearanceTab: View {
     @ObservedObject var preferences: AppPreferences
     @Binding var permissionGranted: Bool
+    var isOnboarding: Bool = false
 
     @State private var isShowingDefaultColorPicker = false
+
+    /// Hairline row separators, only between rows shown during onboarding --
+    /// normal Preferences stays as a denser Grid with no dividers.
+    @ViewBuilder
+    private var onboardingDivider: some View {
+        if isOnboarding {
+            GridRow {
+                Divider().gridCellColumns(2)
+            }
+        }
+    }
 
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
@@ -17,6 +29,8 @@ struct PreferencesAppearanceTab: View {
                     .help("Cmd+, always reopens Preferences, even with the icon hidden")
             }
 
+            onboardingDivider
+
             GridRow {
                 Text("Enable translucency")
                     .foregroundStyle(Color.panelTextSecondary)
@@ -26,6 +40,8 @@ struct PreferencesAppearanceTab: View {
                     .help("Turns off the frosted-glass blur for a solid card, independent of the system-wide Reduce Transparency setting")
             }
 
+            onboardingDivider
+
             GridRow {
                 Text("Show Celebration")
                     .foregroundStyle(Color.panelTextSecondary)
@@ -34,6 +50,8 @@ struct PreferencesAppearanceTab: View {
                     .labelsHidden()
                     .help("Briefly pulses the streak count when you log the first to-do of a new day")
             }
+
+            onboardingDivider
 
             GridRow {
                 Text("Default Color")
@@ -56,6 +74,8 @@ struct PreferencesAppearanceTab: View {
                     }
                 }
             }
+
+            onboardingDivider
 
             GridRow {
                 Text("")

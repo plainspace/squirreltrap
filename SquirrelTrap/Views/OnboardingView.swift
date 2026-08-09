@@ -38,9 +38,9 @@ struct OnboardingView: View {
     @State private var permissionGranted = PermissionManager.status() == .granted
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             header
-            stepIndicator
+            stepTabs
 
             Group {
                 switch step {
@@ -55,13 +55,14 @@ struct OnboardingView: View {
                         isOnboarding: true
                     )
                 case .appearance:
-                    PreferencesAppearanceTab(preferences: preferences, permissionGranted: $permissionGranted)
+                    PreferencesAppearanceTab(preferences: preferences, permissionGranted: $permissionGranted, isOnboarding: true)
                 case .sync:
                     PreferencesSyncTab(
                         preferences: preferences,
                         cloudSyncEngine: cloudSyncEngine,
                         intentStore: intentStore,
-                        onOpenReminderSync: onOpenReminderSync
+                        onOpenReminderSync: onOpenReminderSync,
+                        isOnboarding: true
                     )
                 }
             }
@@ -89,16 +90,34 @@ struct OnboardingView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private var stepIndicator: some View {
-        HStack(spacing: 6) {
+    /// A segmented row of capsule tabs rather than plain progress dots --
+    /// each one names the step and, since jumping between already-visible
+    /// steps doesn't bypass onFinished() (only reachable from .sync's "Get
+    /// Started"), there's no reason not to make them clickable too.
+    private var stepTabs: some View {
+        HStack(spacing: 8) {
             ForEach(Step.allCases, id: \.self) { candidate in
-                Circle()
-                    .fill(candidate == step ? Color.accentColor : Color.panelTextSecondary.opacity(0.3))
-                    .frame(width: 6, height: 6)
+                Button {
+                    step = candidate
+                } label: {
+                    Text(candidate.title)
+                        .font(.system(size: 12, weight: candidate == step ? .semibold : .regular))
+                        .foregroundStyle(candidate == step ? Color.white : Color.panelTextSecondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background {
+                            Capsule()
+                                .fill(candidate == step ? Color.accentColor : Color.clear)
+                        }
+                        .overlay {
+                            if candidate != step {
+                                Capsule()
+                                    .strokeBorder(Color.panelTextSecondary.opacity(0.4), lineWidth: 1)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
             }
-            Text(step.title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.panelTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }

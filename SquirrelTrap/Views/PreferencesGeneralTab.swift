@@ -19,6 +19,17 @@ struct PreferencesGeneralTab: View {
         showingClearCompletedConfirm || showingClearAllConfirm
     }
 
+    /// Hairline row separators, only between rows shown during onboarding --
+    /// normal Preferences stays as a denser Grid with no dividers.
+    @ViewBuilder
+    private var onboardingDivider: some View {
+        if isOnboarding {
+            GridRow {
+                Divider().gridCellColumns(2)
+            }
+        }
+    }
+
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
             GridRow {
@@ -31,6 +42,8 @@ struct PreferencesGeneralTab: View {
                         LaunchAtLoginManager.setEnabled(newValue)
                     }
             }
+
+            onboardingDivider
 
             GridRow {
                 Text("Snooze for")
@@ -47,6 +60,8 @@ struct PreferencesGeneralTab: View {
                 .help("How long the Snooze button (bottom-left of this panel) suppresses Cmd+Tab for")
             }
 
+            onboardingDivider
+
             GridRow {
                 Text("Auto-Snooze")
                     .foregroundStyle(Color.panelTextSecondary)
@@ -55,6 +70,8 @@ struct PreferencesGeneralTab: View {
                     .labelsHidden()
                     .help("Adding a to-do also snoozes Cmd+Tab for the duration above, same as clicking Snooze by hand")
             }
+
+            onboardingDivider
 
             GridRow {
                 Text("Auto-Dismiss")
@@ -69,6 +86,8 @@ struct PreferencesGeneralTab: View {
                         .fixedSize()
                 }
             }
+
+            onboardingDivider
 
             GridRow {
                 Text("Default Alarm")

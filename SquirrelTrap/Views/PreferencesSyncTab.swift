@@ -6,8 +6,20 @@ struct PreferencesSyncTab: View {
     @ObservedObject var cloudSyncEngine: CloudSyncEngine
     let intentStore: IntentStore
     var onOpenReminderSync: () -> Void
+    var isOnboarding: Bool = false
 
     @State private var showCopiedConfirmation = false
+
+    /// Hairline row separators, only between rows shown during onboarding --
+    /// normal Preferences stays as a denser Grid with no dividers.
+    @ViewBuilder
+    private var onboardingDivider: some View {
+        if isOnboarding {
+            GridRow {
+                Divider().gridCellColumns(2)
+            }
+        }
+    }
 
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
@@ -44,11 +56,15 @@ struct PreferencesSyncTab: View {
                 }
             }
 
+            onboardingDivider
+
             GridRow {
                 Text("")
                 Button("Reminders Sync…", action: onOpenReminderSync)
                     .help("Optionally sync with a Reminders list")
             }
+
+            onboardingDivider
 
             GridRow {
                 Text("")
