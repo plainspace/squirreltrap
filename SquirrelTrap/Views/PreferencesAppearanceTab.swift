@@ -4,6 +4,8 @@ struct PreferencesAppearanceTab: View {
     @ObservedObject var preferences: AppPreferences
     @Binding var permissionGranted: Bool
 
+    @State private var isShowingDefaultColorPicker = false
+
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
             GridRow {
@@ -31,6 +33,28 @@ struct PreferencesAppearanceTab: View {
                 Toggle("", isOn: $preferences.celebrationEnabled)
                     .labelsHidden()
                     .help("Briefly pulses the streak count when you log the first to-do of a new day")
+            }
+
+            GridRow {
+                Text("Default Color")
+                    .foregroundStyle(Color.panelTextSecondary)
+                    .lineLimit(1)
+                Button {
+                    isShowingDefaultColorPicker = true
+                } label: {
+                    Image(systemName: preferences.defaultColorTag != nil ? "paintpalette.fill" : "paintpalette")
+                        .font(.system(size: 13))
+                        .foregroundStyle(preferences.defaultColorTag?.color ?? Color.accentColor.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+                .help("New to-dos automatically get this color -- tap the selected swatch again to clear it")
+                .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
+                .popover(isPresented: $isShowingDefaultColorPicker) {
+                    ColorTagGridPicker(selected: preferences.defaultColorTag) { newTag in
+                        preferences.defaultColorTag = newTag
+                        isShowingDefaultColorPicker = false
+                    }
+                }
             }
 
             GridRow {

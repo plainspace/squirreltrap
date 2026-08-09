@@ -73,6 +73,12 @@ final class PanelController: NSObject {
     private var permissionHostingController: NSHostingController<PermissionRequestView>?
     private var preferencesHostingController: NSHostingController<PreferencesView>?
     private var reminderSyncPreferencesHostingController: NSHostingController<ReminderSyncPreferencesView>?
+    private var onboardingHostingController: NSHostingController<OnboardingView>?
+    // Set right before opening Reminders Sync setup *from* onboarding, so its
+    // Back button returns there instead of normal Preferences -- reset back
+    // to false the moment it's used, so every other entry into Reminders
+    // Sync setup keeps going to normal Preferences as usual.
+    private var reminderSyncReturnsToOnboarding = false
     private var globalClickMonitor: Any?
     private var appActivationObserver: NSObjectProtocol?
     private var hasReclaimedFocusForCurrentShow = false
@@ -169,6 +175,14 @@ final class PanelController: NSObject {
     }
 
     func showPromptPanel(highlighting entryID: UUID? = nil) {
+        // Redirects every normal entry point (Cmd+Tab, menu bar click) into
+        // onboarding until it's actually completed -- dismissing onboarding
+        // without finishing just postpones it, since the next trigger lands
+        // right back here.
+        guard preferences.hasCompletedOnboarding else {
+            showOnboardingPanel()
+            return
+        }
         // Re-arm the once-per-show reclaim guard on every invocation, not just
         // when the panel transitions from hidden to visible: a second Cmd+Tab
         // while the panel is already up from the first one previously left
@@ -290,6 +304,13 @@ final class PanelController: NSObject {
     }
 
     func showPreferencesPanel() {
+        // Cmd+, is a direct shortcut into Preferences that bypasses
+        // showPromptPanel()'s own guard -- without this, it'd be an
+        // unintended way to skip onboarding entirely.
+        guard preferences.hasCompletedOnboarding else {
+            showOnboardingPanel()
+            return
+        }
         _ = obtainPanel()
         let controller = preferencesHostingController ?? {
             let controller = NSHostingController(
@@ -314,6 +335,36 @@ final class PanelController: NSObject {
         present()
     }
 
+    /// Shown automatically on a genuinely fresh install (see
+    /// AppPreferences.hasCompletedOnboarding) -- never call this directly
+    /// from a UI trigger; showPromptPanel()/showPreferencesPanel() redirect
+    /// here themselves whenever onboarding isn't complete yet.
+    func showOnboardingPanel() {
+        _ = obtainPanel()
+        let controller = onboardingHostingController ?? {
+            let controller = NSHostingController(
+                rootView: OnboardingView(
+                    preferences: preferences,
+                    cloudSyncEngine: cloudSyncEngine,
+                    intentStore: intentStore,
+                    reminderScheduler: reminderScheduler,
+                    onOpenReminderSync: { [weak self] in
+                        self?.reminderSyncReturnsToOnboarding = true
+                        self?.showReminderSyncPreferencesPanel()
+                    },
+                    onFinished: { [weak self] in
+                        self?.preferences.hasCompletedOnboarding = true
+                        self?.showPromptPanel()
+                    }
+                )
+            )
+            onboardingHostingController = controller
+            return controller
+        }()
+        setContent(controller.view)
+        present()
+    }
+
     func showReminderSyncPreferencesPanel() {
         _ = obtainPanel()
         let controller = reminderSyncPreferencesHostingController ?? {
@@ -321,7 +372,15 @@ final class PanelController: NSObject {
                 rootView: ReminderSyncPreferencesView(
                     preferences: preferences,
                     syncEngine: reminderSyncEngine,
-                    onBack: { [weak self] in self?.showPreferencesPanel() }
+                    onBack: { [weak self] in
+                        guard let self else { return }
+                        if self.reminderSyncReturnsToOnboarding {
+                            self.reminderSyncReturnsToOnboarding = false
+                            self.showOnboardingPanel()
+                        } else {
+                            self.showPreferencesPanel()
+                        }
+                    }
                 )
             )
             reminderSyncPreferencesHostingController = controller

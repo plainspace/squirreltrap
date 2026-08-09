@@ -7,10 +7,13 @@ struct PreferencesGeneralTab: View {
     @Binding var launchAtLoginEnabled: Bool
     var onConfirmationActiveChanged: (Bool) -> Void
     var onQuit: () -> Void
+    /// True when shown as an onboarding step -- hides the destructive/
+    /// irrelevant Clear Items and Quit rows, which make no sense for a
+    /// brand-new user with no data yet.
+    var isOnboarding: Bool = false
 
     @State private var showingClearCompletedConfirm = false
     @State private var showingClearAllConfirm = false
-    @State private var isShowingDefaultColorPicker = false
 
     private var hasActiveConfirmation: Bool {
         showingClearCompletedConfirm || showingClearAllConfirm
@@ -88,69 +91,49 @@ struct PreferencesGeneralTab: View {
                 }
             }
 
-            GridRow {
-                Text("Default Color")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
-                Button {
-                    isShowingDefaultColorPicker = true
-                } label: {
-                    Image(systemName: preferences.defaultColorTag != nil ? "paintpalette.fill" : "paintpalette")
-                        .font(.system(size: 13))
-                        .foregroundStyle(preferences.defaultColorTag?.color ?? Color.accentColor.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-                .help("New to-dos automatically get this color -- tap the selected swatch again to clear it")
-                .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
-                .popover(isPresented: $isShowingDefaultColorPicker) {
-                    ColorTagGridPicker(selected: preferences.defaultColorTag) { newTag in
-                        preferences.defaultColorTag = newTag
-                        isShowingDefaultColorPicker = false
+            if !isOnboarding {
+                GridRow {
+                    Text("")
+                    Button("Clear Finished Items", role: .destructive) {
+                        showingClearCompletedConfirm = true
                     }
-                }
-            }
-
-            GridRow {
-                Text("")
-                Button("Clear Finished Items", role: .destructive) {
-                    showingClearCompletedConfirm = true
-                }
-                .confirmationDialog(
-                    "Delete all completed items? This can't be undone.",
-                    isPresented: $showingClearCompletedConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete Completed", role: .destructive) {
-                        for id in intentStore.clearCompleted() {
-                            reminderScheduler.cancel(for: id)
+                    .confirmationDialog(
+                        "Delete all completed items? This can't be undone.",
+                        isPresented: $showingClearCompletedConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Delete Completed", role: .destructive) {
+                            for id in intentStore.clearCompleted() {
+                                reminderScheduler.cancel(for: id)
+                            }
                         }
+                        Button("Cancel", role: .cancel) {}
                     }
-                    Button("Cancel", role: .cancel) {}
                 }
-            }
 
-            GridRow {
-                Text("")
-                Button("Clear All Items", role: .destructive) {
-                    showingClearAllConfirm = true
-                }
-                .confirmationDialog(
-                    "Delete your entire task history? This can't be undone.",
-                    isPresented: $showingClearAllConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete Everything", role: .destructive) {
-                        for id in intentStore.clearAll() {
-                            reminderScheduler.cancel(for: id)
+                GridRow {
+                    Text("")
+                    Button("Clear All Items", role: .destructive) {
+                        showingClearAllConfirm = true
+                    }
+                    .confirmationDialog(
+                        "Delete your entire task history? This can't be undone.",
+                        isPresented: $showingClearAllConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Delete Everything", role: .destructive) {
+                            for id in intentStore.clearAll() {
+                                reminderScheduler.cancel(for: id)
+                            }
                         }
+                        Button("Cancel", role: .cancel) {}
                     }
-                    Button("Cancel", role: .cancel) {}
                 }
-            }
 
-            GridRow {
-                Text("")
-                Button("Quit Squirrel Trap", role: .destructive, action: onQuit)
+                GridRow {
+                    Text("")
+                    Button("Quit Squirrel Trap", role: .destructive, action: onQuit)
+                }
             }
         }
         .font(.system(size: 12))

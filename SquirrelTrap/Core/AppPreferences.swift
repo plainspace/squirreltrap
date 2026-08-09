@@ -45,6 +45,14 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(celebrationEnabled, forKey: Keys.celebrationEnabled) }
     }
 
+    /// True once the first-run onboarding wizard has been completed -- see
+    /// OnboardingView and PanelController.showOnboardingPanel(). Gates every
+    /// normal entry point (Cmd+Tab, menu bar click, Cmd+,) until it's done,
+    /// so it can't be bypassed, only postponed.
+    @Published var hasCompletedOnboarding: Bool {
+        didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
+    }
+
     @Published var reminderSyncDirection: ReminderSyncDirection {
         didSet { UserDefaults.standard.set(reminderSyncDirection.rawValue, forKey: Keys.reminderSyncDirection) }
     }
@@ -155,6 +163,7 @@ final class AppPreferences: ObservableObject {
         static let inactivityTimeout = "inactivityTimeout"
         static let translucencyEnabled = "translucencyEnabled"
         static let celebrationEnabled = "celebrationEnabled"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let reminderSyncDirection = "reminderSyncDirection"
         static let reminderSyncEveryNInvocations = "reminderSyncEveryNInvocations"
         static let reminderSyncListIdentifier = "reminderSyncListIdentifier"
@@ -196,6 +205,16 @@ final class AppPreferences: ObservableObject {
             celebrationEnabled = true
         } else {
             celebrationEnabled = UserDefaults.standard.bool(forKey: Keys.celebrationEnabled)
+        }
+
+        if UserDefaults.standard.object(forKey: Keys.hasCompletedOnboarding) == nil {
+            // A genuinely fresh install has no preferences at all yet --
+            // showMenuBarIcon has existed since v1.0, so its presence means
+            // this Mac has run Squirrel Trap before onboarding existed.
+            // Those installs should never be forced through it retroactively.
+            hasCompletedOnboarding = UserDefaults.standard.object(forKey: Keys.showMenuBarIcon) != nil
+        } else {
+            hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Keys.hasCompletedOnboarding)
         }
 
         if let rawValue = UserDefaults.standard.string(forKey: Keys.reminderSyncDirection),

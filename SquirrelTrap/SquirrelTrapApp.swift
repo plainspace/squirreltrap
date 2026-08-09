@@ -121,6 +121,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if status == .granted {
             let started = monitor.start()
             debugLog("Squirrel Trap DEBUG: monitor.start() = \(started)\n")
+            // A fresh install that somehow already has permission (e.g.
+            // reinstalling with permission retained) still gets onboarding,
+            // shown proactively rather than waiting for a first Cmd+Tab.
+            if !preferences.hasCompletedOnboarding {
+                panelController.showOnboardingPanel()
+            }
         } else {
             panelController.showPermissionRequestPanel()
             startPermissionPolling()
@@ -139,7 +145,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.permissionPollTimer = nil
                 let started = self.monitor.start()
                 debugLog("Squirrel Trap DEBUG: monitor.start() = \(started)\n")
-                self.panelController.hidePanel()
+                if !self.preferences.hasCompletedOnboarding {
+                    self.panelController.showOnboardingPanel()
+                } else {
+                    self.panelController.hidePanel()
+                }
             }
         }
     }
