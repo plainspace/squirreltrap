@@ -90,12 +90,13 @@ struct OnboardingView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    /// A segmented row of capsule tabs rather than plain progress dots --
-    /// each one names the step and, since jumping between already-visible
-    /// steps doesn't bypass onFinished() (only reachable from .sync's "Get
-    /// Started"), there's no reason not to make them clickable too.
+    /// One continuous segmented bar (a single capsule track, not 3 separate
+    /// buttons with gaps/borders of their own) -- each segment names the
+    /// step and, since jumping between already-visible steps doesn't bypass
+    /// onFinished() (only reachable from .sync's "Get Started"), there's no
+    /// reason not to make them clickable too.
     private var stepTabs: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(Step.allCases, id: \.self) { candidate in
                 Button {
                     step = candidate
@@ -103,22 +104,26 @@ struct OnboardingView: View {
                     Text(candidate.title)
                         .font(.system(size: 12, weight: candidate == step ? .semibold : .regular))
                         .foregroundStyle(candidate == step ? Color.white : Color.panelTextSecondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background {
-                            Capsule()
-                                .fill(candidate == step ? Color.accentColor : Color.clear)
-                        }
-                        .overlay {
-                            if candidate != step {
-                                Capsule()
-                                    .strokeBorder(Color.panelTextSecondary.opacity(0.4), lineWidth: 1)
-                            }
-                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(candidate == step ? Color.accentColor : Color.clear)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+
+                if candidate != Step.allCases.last {
+                    Rectangle()
+                        .fill(Color.panelTextSecondary.opacity(0.3))
+                        .frame(width: 1, height: 16)
+                }
             }
         }
+        .background(Color.panelTextSecondary.opacity(0.08))
+        .clipShape(Capsule())
+        .overlay {
+            Capsule().strokeBorder(Color.panelTextSecondary.opacity(0.35), lineWidth: 1)
+        }
+        .frame(width: 320)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
