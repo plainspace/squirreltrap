@@ -134,7 +134,7 @@ struct PromptPanelView: View {
     @ViewBuilder
     private func coachTipBubble(for tip: CoachTip) -> some View {
         CoachTipBubble(
-            message: tip.message,
+            message: tip.message(preferences: preferences),
             onDismiss: { activeCoachTip = nil },
             onDisableAll: { preferences.coachTipsEnabled = false }
         )
@@ -215,6 +215,17 @@ struct PromptPanelView: View {
             .accessibilityLabel("Preferences")
             .popover(isPresented: coachTipPopoverBinding(for: .preferences)) {
                 coachTipBubble(for: .preferences)
+            }
+            // Reminders/Default Alarm aren't literally gear-icon features,
+            // but there's no other always-present anchor in this footer to
+            // hang a settings-adjacent tip on -- each only ever shows once,
+            // at its own trigger count, so stacking a few here over time
+            // reads as "more to discover" rather than repeated nagging.
+            .popover(isPresented: coachTipPopoverBinding(for: .reminders)) {
+                coachTipBubble(for: .reminders)
+            }
+            .popover(isPresented: coachTipPopoverBinding(for: .defaultAlarm)) {
+                coachTipBubble(for: .defaultAlarm)
             }
 
             // Rapidly switching apps can turn the popup itself into the
