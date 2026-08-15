@@ -10,6 +10,7 @@ enum CoachTip: CaseIterable {
     case snooze
     case reminders
     case defaultAlarm
+    case launchAtLogin
 
     var triggerCount: Int {
         switch self {
@@ -17,6 +18,7 @@ enum CoachTip: CaseIterable {
         case .snooze: return 5
         case .reminders: return 8
         case .defaultAlarm: return 12
+        case .launchAtLogin: return 16
         }
     }
 
@@ -39,6 +41,12 @@ enum CoachTip: CaseIterable {
                 return "Default Alarm is already on, so every new to-do gets a reminder in \(minutes) minute\(minutes == 1 ? "" : "s") automatically. Change the timing anytime in Preferences → General."
             } else {
                 return "Want every new to-do to get a reminder automatically, with no extra tap? Turn on Default Alarm in Preferences → General -- it's currently off."
+            }
+        case .launchAtLogin:
+            if LaunchAtLoginManager.isEnabled {
+                return "Launch at Login is already on, so Squirrel Trap is ready the moment you start your Mac."
+            } else {
+                return "Want Squirrel Trap ready the moment you start your Mac? Turn on Launch at Login in Preferences → General -- it's currently off."
             }
         }
     }

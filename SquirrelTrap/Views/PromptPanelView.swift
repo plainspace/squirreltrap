@@ -205,7 +205,17 @@ struct PromptPanelView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button(action: onOpenPreferences) {
+            Button {
+                // Dismiss any open coach-tip popover *before* navigating away
+                // -- PanelController.setContent() removes this whole view
+                // from the window to swap in Preferences, and doing that
+                // while a popover anchored to it is still marked presented
+                // left the popover's child window dangling, corrupting
+                // Preferences' responder chain (Escape/dismiss stopped
+                // working once you'd opened it that way).
+                activeCoachTip = nil
+                onOpenPreferences()
+            } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))
                     .foregroundStyle(Color.accentColor)
@@ -227,6 +237,9 @@ struct PromptPanelView: View {
             .popover(isPresented: coachTipPopoverBinding(for: .defaultAlarm)) {
                 coachTipBubble(for: .defaultAlarm)
             }
+            .popover(isPresented: coachTipPopoverBinding(for: .launchAtLogin)) {
+                coachTipBubble(for: .launchAtLogin)
+            }
 
             // Rapidly switching apps can turn the popup itself into the
             // annoyance — Snooze suppresses Cmd+Tab triggering it for a bit
@@ -234,8 +247,11 @@ struct PromptPanelView: View {
             // cancels the snooze early). Duration is configured in Preferences;
             // the fade + "Snoozing…" message live in PanelController so both
             // this button and the one in Preferences share the same behavior.
-            SnoozeButton(minutes: preferences.snoozeDurationMinutes, action: onSnooze)
-                .help("Snooze Cmd+Tab for a while")
+            SnoozeButton(minutes: preferences.snoozeDurationMinutes) {
+                activeCoachTip = nil
+                onSnooze()
+            }
+            .help("Snooze Cmd+Tab for a while")
                 .popover(isPresented: coachTipPopoverBinding(for: .snooze)) {
                     coachTipBubble(for: .snooze)
                 }
