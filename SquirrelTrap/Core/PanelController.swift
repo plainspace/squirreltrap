@@ -261,7 +261,7 @@ final class PanelController: NSObject {
             panel.makeKeyAndOrderFront(nil)
             debugLog("Squirrel Trap DEBUG: [grabPromptFocus] re-asserted key window, isKeyWindow=\(panel.isKeyWindow), attemptsRemaining=\(attemptsRemaining)\n")
         }
-        guard panel.isKeyWindow, let contentContainer, let keyView = firstKeyableView(in: contentContainer) else {
+        guard panel.isKeyWindow, let contentContainer, let keyView = firstTextFieldView(in: contentContainer) else {
             debugLog("Squirrel Trap DEBUG: [grabPromptFocus] not ready (isKeyWindow=\(panel.isKeyWindow)), attemptsRemaining=\(attemptsRemaining)\n")
             retryPromptFocusIfPossible(attemptsRemaining: attemptsRemaining)
             return
@@ -283,10 +283,23 @@ final class PanelController: NSObject {
         }
     }
 
-    private func firstKeyableView(in view: NSView) -> NSView? {
-        if view.canBecomeKeyView { return view }
+    /// "First view with canBecomeKeyView == true" was too broad a heuristic:
+    /// footer buttons (gear, Snooze, the coach-tip popovers now anchored to
+    /// them) and the favorites star are ALL canBecomeKeyView too, and one of
+    /// them winning that search intermittently (observed: the favorites
+    /// star, not just footer buttons) is exactly what put focus in the wrong
+    /// place while still reporting makeFirstResponder success=true, since
+    /// technically that view legitimately became first responder -- just
+    /// not the one this method exists to find. SwiftUI's macOS TextField
+    /// backs onto a private "AppKitTextField" class (confirmed via a full
+    /// subview-tree dump earlier), so this targets that specifically by
+    /// type name instead of "any keyable view will do."
+    private func firstTextFieldView(in view: NSView) -> NSView? {
+        if view.canBecomeKeyView, String(describing: type(of: view)).contains("TextField") {
+            return view
+        }
         for subview in view.subviews {
-            if let found = firstKeyableView(in: subview) {
+            if let found = firstTextFieldView(in: subview) {
                 return found
             }
         }

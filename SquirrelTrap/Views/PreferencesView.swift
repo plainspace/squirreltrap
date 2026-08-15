@@ -62,7 +62,7 @@ struct PreferencesView: View {
                             onOpenReminderSync: onOpenReminderSync
                         )
                     case .activity:
-                        PreferencesActivityTab(intentStore: intentStore)
+                        PreferencesActivityTab(intentStore: intentStore, preferences: preferences)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)

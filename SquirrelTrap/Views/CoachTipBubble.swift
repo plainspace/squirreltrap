@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// Popover content for a single CoachTip -- a message, a "Don't show tips
-/// like this again" checkbox (a global opt-out, not a per-tip one; see
-/// CoachTip's doc comment for why), and a dismiss button.
+/// Popover content for a single CoachTip -- a message, a per-tip "Don't show
+/// this tip again" checkbox (checking it drops just this tip out of the
+/// rotation for good; leaving it unchecked means this same tip can come
+/// back around once the cycle reaches it again), and a dismiss button.
 struct CoachTipBubble: View {
     let message: String
     var onDismiss: () -> Void
-    var onDisableAll: () -> Void
+    var onDismissThisTipPermanently: () -> Void
 
     @State private var doNotShowAgain = false
 
@@ -18,14 +19,14 @@ struct CoachTipBubble: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: 220, alignment: .leading)
 
-            Toggle("Don't show tips like this again", isOn: $doNotShowAgain)
+            Toggle("Don't show this tip again", isOn: $doNotShowAgain)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
                 .foregroundStyle(Color.panelTextSecondary)
 
             Button("Got it") {
                 if doNotShowAgain {
-                    onDisableAll()
+                    onDismissThisTipPermanently()
                 }
                 onDismiss()
             }

@@ -3,6 +3,9 @@ import SwiftUI
 
 struct PreferencesActivityTab: View {
     let intentStore: IntentStore
+    @ObservedObject var preferences: AppPreferences
+
+    @State private var showResetConfirmation = false
 
     private var days: [(date: Date, count: Int)] { intentStore.last7DaysCompletionCounts }
 
@@ -63,6 +66,27 @@ struct PreferencesActivityTab: View {
                         .foregroundStyle(Color.panelTextSecondary)
                     Text(averagePerDay.formatted(.number.precision(.fractionLength(1))))
                         .foregroundStyle(Color.panelTextPrimary)
+                }
+            }
+            .font(.system(size: 12))
+
+            Divider()
+
+            HStack(spacing: 8) {
+                Button("Reset All Tips") {
+                    preferences.dismissedCoachTips = []
+                    preferences.coachTipRotationIndex = 0
+                    showResetConfirmation = true
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        showResetConfirmation = false
+                    }
+                }
+                .help("Brings back every coach tip you've dismissed, so the rotation starts over")
+                if showResetConfirmation {
+                    Label("Reset", systemImage: "checkmark.circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.panelTextSecondary)
                 }
             }
             .font(.system(size: 12))

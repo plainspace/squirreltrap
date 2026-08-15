@@ -115,13 +115,18 @@ struct PromptPanelView: View {
         .onChange(of: preferences.totalPanelShows) { _, _ in checkForCoachTip() }
     }
 
-    /// Fires the CoachTip (if any) whose triggerCount matches the panel's
-    /// current show count -- each one only ever matches once, since
-    /// totalPanelShows only equals any given number a single time.
+    /// Every 4th show starting at the 2nd (2, 6, 10, 14, ...) picks the next
+    /// tip in the rotation through whatever hasn't been individually
+    /// dismissed yet, via coachTipRotationIndex -- an undismissed tip keeps
+    /// recurring as the cycle comes back around, so this doesn't stop until
+    /// every tip has eventually been dismissed (or Reset All Tips runs).
     private func checkForCoachTip() {
-        guard preferences.coachTipsEnabled else { return }
-        guard let tip = CoachTip.tip(forPanelShowCount: preferences.totalPanelShows) else { return }
-        activeCoachTip = tip
+        let count = preferences.totalPanelShows
+        guard count >= 2, (count - 2).isMultiple(of: 4) else { return }
+        let undismissed = CoachTip.allCases.filter { !preferences.dismissedCoachTips.contains($0.rawValue) }
+        guard !undismissed.isEmpty else { return }
+        activeCoachTip = undismissed[preferences.coachTipRotationIndex % undismissed.count]
+        preferences.coachTipRotationIndex += 1
     }
 
     private func coachTipPopoverBinding(for tip: CoachTip) -> Binding<Bool> {
@@ -136,7 +141,7 @@ struct PromptPanelView: View {
         CoachTipBubble(
             message: tip.message(preferences: preferences),
             onDismiss: { activeCoachTip = nil },
-            onDisableAll: { preferences.coachTipsEnabled = false }
+            onDismissThisTipPermanently: { preferences.dismissedCoachTips.insert(tip.rawValue) }
         )
     }
 

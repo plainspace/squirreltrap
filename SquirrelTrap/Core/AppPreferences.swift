@@ -61,12 +61,21 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(totalPanelShows, forKey: Keys.totalPanelShows) }
     }
 
-    /// Global off-switch for the whole coach-tip system, set by checking
-    /// "Don't show tips like this again" on any one tip -- individual tips
-    /// never re-show anyway (each triggers once, at an exact totalPanelShows
-    /// value), so there's no per-tip dismissal state to track separately.
-    @Published var coachTipsEnabled: Bool {
-        didSet { UserDefaults.standard.set(coachTipsEnabled, forKey: Keys.coachTipsEnabled) }
+    /// CoachTip.rawValues that have been individually dismissed ("Don't show
+    /// this tip again") -- permanently excluded from the rotation. Reset
+    /// (along with coachTipRotationIndex) by Preferences → Activity's
+    /// "Reset All Tips" button.
+    @Published var dismissedCoachTips: Set<String> {
+        didSet { UserDefaults.standard.set(Array(dismissedCoachTips), forKey: Keys.dismissedCoachTips) }
+    }
+
+    /// How many tips have been shown so far -- picks the next one via
+    /// `undismissedTips[coachTipRotationIndex % undismissedTips.count]` each
+    /// time the every-4th-show checkpoint is reached, so the rotation keeps
+    /// cycling through whatever's left rather than only ever showing each
+    /// tip once.
+    @Published var coachTipRotationIndex: Int {
+        didSet { UserDefaults.standard.set(coachTipRotationIndex, forKey: Keys.coachTipRotationIndex) }
     }
 
     @Published var reminderSyncDirection: ReminderSyncDirection {
@@ -181,7 +190,8 @@ final class AppPreferences: ObservableObject {
         static let celebrationEnabled = "celebrationEnabled"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let totalPanelShows = "totalPanelShows"
-        static let coachTipsEnabled = "coachTipsEnabled"
+        static let dismissedCoachTips = "dismissedCoachTips"
+        static let coachTipRotationIndex = "coachTipRotationIndex"
         static let reminderSyncDirection = "reminderSyncDirection"
         static let reminderSyncEveryNInvocations = "reminderSyncEveryNInvocations"
         static let reminderSyncListIdentifier = "reminderSyncListIdentifier"
@@ -238,18 +248,28 @@ final class AppPreferences: ObservableObject {
         }
 
         if UserDefaults.standard.object(forKey: Keys.totalPanelShows) == nil {
-            // Starting well past every CoachTip.triggerCount means an
-            // existing install never sees "beginner" tips it doesn't need.
             totalPanelShows = isExistingInstall ? 1000 : 0
         } else {
             totalPanelShows = UserDefaults.standard.integer(forKey: Keys.totalPanelShows)
         }
 
-        if UserDefaults.standard.object(forKey: Keys.coachTipsEnabled) == nil {
-            coachTipsEnabled = true
+        if let stored = UserDefaults.standard.array(forKey: Keys.dismissedCoachTips) as? [String] {
+            dismissedCoachTips = Set(stored)
+        } else if isExistingInstall {
+            // The rotation cycles indefinitely (unlike a one-shot trigger
+            // count), so starting totalPanelShows past the first checkpoint
+            // isn't enough on its own to keep tips from eventually reaching
+            // an existing install -- pre-dismissing every tip that exists as
+            // of this build is. A genuinely new CoachTip case added in a
+            // later version will still reach existing installs normally,
+            // since by then this key already exists and this branch won't
+            // run again.
+            dismissedCoachTips = Set(CoachTip.allCases.map(\.rawValue))
         } else {
-            coachTipsEnabled = UserDefaults.standard.bool(forKey: Keys.coachTipsEnabled)
+            dismissedCoachTips = []
         }
+
+        coachTipRotationIndex = UserDefaults.standard.integer(forKey: Keys.coachTipRotationIndex)
 
         if let rawValue = UserDefaults.standard.string(forKey: Keys.reminderSyncDirection),
            let direction = ReminderSyncDirection(rawValue: rawValue) {

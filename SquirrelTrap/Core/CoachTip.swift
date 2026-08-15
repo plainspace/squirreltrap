@@ -1,26 +1,19 @@
 import Foundation
 
-/// A one-shot contextual tip surfaced near a specific control the first time
-/// AppPreferences.totalPanelShows reaches its triggerCount. Each tip fires
-/// exactly once by construction -- totalPanelShows only ever equals any
-/// given number a single time -- so there's no separate per-tip dismissal
-/// state, only the global AppPreferences.coachTipsEnabled opt-out.
-enum CoachTip: CaseIterable {
+/// A contextual tip surfaced near a specific control, cycling in
+/// declaration order through whichever tips haven't been individually
+/// dismissed -- see PromptPanelView.checkForCoachTip for the every-4th-show
+/// rotation, and AppPreferences.dismissedCoachTips/coachTipRotationIndex for
+/// the persisted state. A dismissed tip drops out of the rotation for good;
+/// an undismissed one keeps recurring as the cycle comes back around, until
+/// every tip has eventually been dismissed (Preferences → Activity has a
+/// "Reset All Tips" button that clears all of this and starts over).
+enum CoachTip: String, CaseIterable {
     case preferences
     case snooze
     case reminders
     case defaultAlarm
     case launchAtLogin
-
-    var triggerCount: Int {
-        switch self {
-        case .preferences: return 2
-        case .snooze: return 5
-        case .reminders: return 8
-        case .defaultAlarm: return 12
-        case .launchAtLogin: return 16
-        }
-    }
 
     /// A function of the live AppPreferences, not a static string -- several
     /// tips surface the actual current value of the setting they're
@@ -49,9 +42,5 @@ enum CoachTip: CaseIterable {
                 return "Want Squirrel Trap ready the moment you start your Mac? Turn on Launch at Login in Preferences → General -- it's currently off."
             }
         }
-    }
-
-    static func tip(forPanelShowCount count: Int) -> CoachTip? {
-        allCases.first { $0.triggerCount == count }
     }
 }
