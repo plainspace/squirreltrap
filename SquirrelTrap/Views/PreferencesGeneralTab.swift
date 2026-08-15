@@ -33,9 +33,12 @@ struct PreferencesGeneralTab: View {
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
             GridRow {
-                Text("Launch at Login")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Launch at Login")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Automatically starts Squirrel Trap when you log in to your Mac.")
+                }
                 Toggle("", isOn: $launchAtLoginEnabled)
                     .labelsHidden()
                     .onChange(of: launchAtLoginEnabled) { _, newValue in
@@ -46,9 +49,12 @@ struct PreferencesGeneralTab: View {
             onboardingDivider
 
             GridRow {
-                Text("Snooze for")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Snooze for")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("How long the Snooze button (bottom-left of this panel) suppresses Cmd+Tab for.")
+                }
                 HStack(spacing: 6) {
                     TimeoutComboBox(value: $preferences.snoozeDurationMinutes, options: [5, 10, 15, 30, 60])
                         .frame(width: 56)
@@ -57,26 +63,30 @@ struct PreferencesGeneralTab: View {
                         .lineLimit(1)
                         .fixedSize()
                 }
-                .help("How long the Snooze button (bottom-left of this panel) suppresses Cmd+Tab for")
             }
 
             onboardingDivider
 
             GridRow {
-                Text("Auto-Snooze")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Auto-Snooze")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Adding a to-do also snoozes Cmd+Tab for the duration above, same as clicking Snooze by hand.")
+                }
                 Toggle("", isOn: $preferences.autoSnoozeAfterEntry)
                     .labelsHidden()
-                    .help("Adding a to-do also snoozes Cmd+Tab for the duration above, same as clicking Snooze by hand")
             }
 
             onboardingDivider
 
             GridRow {
-                Text("Auto-Dismiss")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Auto-Dismiss")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("How long the panel sits idle before it fades away on its own if you don't interact with it.")
+                }
                 HStack(spacing: 6) {
                     TimeoutComboBox(value: $preferences.inactivityTimeout, options: [3, 5, 7, 10, 15, 20, 30])
                         .frame(width: 56)
@@ -90,13 +100,15 @@ struct PreferencesGeneralTab: View {
             onboardingDivider
 
             GridRow {
-                Text("Default Alarm")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Default Alarm")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Automatically sets a reminder on every new to-do, so you get a nudge later even if you forget to check back.")
+                }
                 HStack(spacing: 6) {
                     Toggle("", isOn: $preferences.defaultAlarmEnabled)
                         .labelsHidden()
-                        .help("New to-dos automatically get a reminder set")
                     if preferences.defaultAlarmEnabled {
                         Picker("", selection: $preferences.defaultAlarmDurationSeconds) {
                             ForEach(IntentRowView.reminderDurations, id: \.seconds) { duration in

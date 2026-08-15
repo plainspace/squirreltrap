@@ -53,6 +53,22 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
     }
 
+    /// Counts every time the main prompt panel has been shown -- CoachTip's
+    /// triggerCount values are checked against this. Bumped in
+    /// PanelController.showPromptPanel(), never for Preferences/onboarding
+    /// shows.
+    @Published var totalPanelShows: Int {
+        didSet { UserDefaults.standard.set(totalPanelShows, forKey: Keys.totalPanelShows) }
+    }
+
+    /// Global off-switch for the whole coach-tip system, set by checking
+    /// "Don't show tips like this again" on any one tip -- individual tips
+    /// never re-show anyway (each triggers once, at an exact totalPanelShows
+    /// value), so there's no per-tip dismissal state to track separately.
+    @Published var coachTipsEnabled: Bool {
+        didSet { UserDefaults.standard.set(coachTipsEnabled, forKey: Keys.coachTipsEnabled) }
+    }
+
     @Published var reminderSyncDirection: ReminderSyncDirection {
         didSet { UserDefaults.standard.set(reminderSyncDirection.rawValue, forKey: Keys.reminderSyncDirection) }
     }
@@ -164,6 +180,8 @@ final class AppPreferences: ObservableObject {
         static let translucencyEnabled = "translucencyEnabled"
         static let celebrationEnabled = "celebrationEnabled"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let totalPanelShows = "totalPanelShows"
+        static let coachTipsEnabled = "coachTipsEnabled"
         static let reminderSyncDirection = "reminderSyncDirection"
         static let reminderSyncEveryNInvocations = "reminderSyncEveryNInvocations"
         static let reminderSyncListIdentifier = "reminderSyncListIdentifier"
@@ -207,14 +225,30 @@ final class AppPreferences: ObservableObject {
             celebrationEnabled = UserDefaults.standard.bool(forKey: Keys.celebrationEnabled)
         }
 
+        // A genuinely fresh install has no preferences at all yet --
+        // showMenuBarIcon has existed since v1.0, so its presence means this
+        // Mac has run Squirrel Trap before onboarding/coach tips existed.
+        // Those installs should never be forced through either retroactively.
+        let isExistingInstall = UserDefaults.standard.object(forKey: Keys.showMenuBarIcon) != nil
+
         if UserDefaults.standard.object(forKey: Keys.hasCompletedOnboarding) == nil {
-            // A genuinely fresh install has no preferences at all yet --
-            // showMenuBarIcon has existed since v1.0, so its presence means
-            // this Mac has run Squirrel Trap before onboarding existed.
-            // Those installs should never be forced through it retroactively.
-            hasCompletedOnboarding = UserDefaults.standard.object(forKey: Keys.showMenuBarIcon) != nil
+            hasCompletedOnboarding = isExistingInstall
         } else {
             hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Keys.hasCompletedOnboarding)
+        }
+
+        if UserDefaults.standard.object(forKey: Keys.totalPanelShows) == nil {
+            // Starting well past every CoachTip.triggerCount means an
+            // existing install never sees "beginner" tips it doesn't need.
+            totalPanelShows = isExistingInstall ? 1000 : 0
+        } else {
+            totalPanelShows = UserDefaults.standard.integer(forKey: Keys.totalPanelShows)
+        }
+
+        if UserDefaults.standard.object(forKey: Keys.coachTipsEnabled) == nil {
+            coachTipsEnabled = true
+        } else {
+            coachTipsEnabled = UserDefaults.standard.bool(forKey: Keys.coachTipsEnabled)
         }
 
         if let rawValue = UserDefaults.standard.string(forKey: Keys.reminderSyncDirection),

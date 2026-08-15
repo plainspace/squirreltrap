@@ -15,6 +15,11 @@ struct PromptPanelView: View {
     // see PendingRowView.startCompletionAnimation.
     @State private var iconScale: CGFloat = 1.0
     @State private var countScale: CGFloat = 1.0
+    // Which CoachTip (if any) is currently popped over its anchor button --
+    // see checkForCoachTip(). Not persisted; only whether a tip has ever
+    // fired is (implicitly, via AppPreferences.totalPanelShows only ever
+    // equaling any given trigger count once).
+    @State private var activeCoachTip: CoachTip?
     var onDismiss: () -> Void
     var onEscape: () -> Void
     var onOpenPreferences: () -> Void
@@ -100,10 +105,39 @@ struct PromptPanelView: View {
         // so whichever one actually fires, confirmation dialogs are still
         // respected and double-firing is harmless.
         .onExitCommand(perform: onEscape)
-        .onAppear { if !viewModel.isShowingFavorites { isInputFocused = true } }
+        .onAppear {
+            if !viewModel.isShowingFavorites { isInputFocused = true }
+            checkForCoachTip()
+        }
         .onChange(of: viewModel.focusToken) { _, _ in
             if !viewModel.isShowingFavorites { isInputFocused = true }
         }
+        .onChange(of: preferences.totalPanelShows) { _, _ in checkForCoachTip() }
+    }
+
+    /// Fires the CoachTip (if any) whose triggerCount matches the panel's
+    /// current show count -- each one only ever matches once, since
+    /// totalPanelShows only equals any given number a single time.
+    private func checkForCoachTip() {
+        guard preferences.coachTipsEnabled else { return }
+        guard let tip = CoachTip.tip(forPanelShowCount: preferences.totalPanelShows) else { return }
+        activeCoachTip = tip
+    }
+
+    private func coachTipPopoverBinding(for tip: CoachTip) -> Binding<Bool> {
+        Binding(
+            get: { activeCoachTip == tip },
+            set: { isPresented in if !isPresented { activeCoachTip = nil } }
+        )
+    }
+
+    @ViewBuilder
+    private func coachTipBubble(for tip: CoachTip) -> some View {
+        CoachTipBubble(
+            message: tip.message,
+            onDismiss: { activeCoachTip = nil },
+            onDisableAll: { preferences.coachTipsEnabled = false }
+        )
     }
 
     private var header: some View {
@@ -179,6 +213,9 @@ struct PromptPanelView: View {
             .buttonStyle(.plain)
             .help("Preferences")
             .accessibilityLabel("Preferences")
+            .popover(isPresented: coachTipPopoverBinding(for: .preferences)) {
+                coachTipBubble(for: .preferences)
+            }
 
             // Rapidly switching apps can turn the popup itself into the
             // annoyance — Snooze suppresses Cmd+Tab triggering it for a bit
@@ -188,6 +225,9 @@ struct PromptPanelView: View {
             // this button and the one in Preferences share the same behavior.
             SnoozeButton(minutes: preferences.snoozeDurationMinutes, action: onSnooze)
                 .help("Snooze Cmd+Tab for a while")
+                .popover(isPresented: coachTipPopoverBinding(for: .snooze)) {
+                    coachTipBubble(for: .snooze)
+                }
 
             #if DEBUG
             // Debug-only: the real celebration only fires once per calendar

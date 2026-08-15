@@ -21,42 +21,51 @@ struct PreferencesAppearanceTab: View {
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
             GridRow {
-                Text("Show menu bar icon")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Show menu bar icon")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Shows a Squirrel Trap icon in the menu bar for quick access. Cmd+, always reopens Preferences, even with the icon hidden.")
+                }
                 Toggle("", isOn: $preferences.showMenuBarIcon)
                     .labelsHidden()
-                    .help("Cmd+, always reopens Preferences, even with the icon hidden")
             }
 
             onboardingDivider
 
             GridRow {
-                Text("Enable translucency")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Enable translucency")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Turns off the frosted-glass blur for a solid card, independent of the system-wide Reduce Transparency setting.")
+                }
                 Toggle("", isOn: $preferences.translucencyEnabled)
                     .labelsHidden()
-                    .help("Turns off the frosted-glass blur for a solid card, independent of the system-wide Reduce Transparency setting")
             }
 
             onboardingDivider
 
             GridRow {
-                Text("Show Celebration")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Show Celebration")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Plays a brief animation on the main panel whenever you complete a to-do.")
+                }
                 Toggle("", isOn: $preferences.celebrationEnabled)
                     .labelsHidden()
-                    .help("Briefly pulses the streak count when you log the first to-do of a new day")
             }
 
             onboardingDivider
 
             GridRow {
-                Text("Default Color")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("Default Color")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Automatically tags every new to-do with this color -- tap the selected swatch again to turn it off.")
+                }
                 Button {
                     isShowingDefaultColorPicker = true
                 } label: {
@@ -65,7 +74,6 @@ struct PreferencesAppearanceTab: View {
                         .foregroundStyle(preferences.defaultColorTag?.color ?? Color.accentColor.opacity(0.5))
                 }
                 .buttonStyle(.plain)
-                .help("New to-dos automatically get this color -- tap the selected swatch again to clear it")
                 .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
                 .popover(isPresented: $isShowingDefaultColorPicker) {
                     ColorTagGridPicker(selected: preferences.defaultColorTag) { newTag in

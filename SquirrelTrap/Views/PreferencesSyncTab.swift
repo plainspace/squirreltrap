@@ -24,13 +24,15 @@ struct PreferencesSyncTab: View {
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
             GridRow {
-                Text("iCloud Sync")
-                    .foregroundStyle(Color.panelTextSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("iCloud Sync")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Keeps your to-do list in sync across every Mac you use, always both ways, via your own iCloud account -- not a third-party server.")
+                }
                 HStack(spacing: 6) {
                     Toggle("", isOn: $preferences.iCloudSyncEnabled)
                         .labelsHidden()
-                        .help("Keep your to-do list in sync across your Macs via iCloud — always both ways")
                         .onChange(of: preferences.iCloudSyncEnabled) { oldValue, newValue in
                             // Same reasoning as Reminders sync: flip the toggle on and
                             // wait for the every-Nth-show fallback (or a push that
@@ -60,8 +62,10 @@ struct PreferencesSyncTab: View {
 
             GridRow {
                 Text("")
-                Button("Reminders Sync…", action: onOpenReminderSync)
-                    .help("Optionally sync with a Reminders list")
+                HStack(spacing: 4) {
+                    Button("Reminders Sync…", action: onOpenReminderSync)
+                    HelpTip("Optionally connects Squirrel Trap to a list in Apple's Reminders app, one-directional or both ways, your choice.")
+                }
             }
 
             onboardingDivider

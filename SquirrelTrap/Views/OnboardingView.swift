@@ -110,6 +110,11 @@ struct OnboardingView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // Otherwise the first tab (whichever one AppKit happens to
+                // pick as initial first responder in this new panel) draws
+                // the system keyboard-focus ring around itself, which reads
+                // as a stray border on an otherwise borderless segment.
+                .focusable(false)
 
                 if candidate != Step.allCases.last {
                     Rectangle()

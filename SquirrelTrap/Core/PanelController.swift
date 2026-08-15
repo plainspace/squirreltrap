@@ -183,6 +183,9 @@ final class PanelController: NSObject {
             showOnboardingPanel()
             return
         }
+        // Drives CoachTip's triggerCount checks in PromptPanelView -- only
+        // counts real prompt-panel shows, never Preferences/onboarding ones.
+        preferences.totalPanelShows += 1
         // Re-arm the once-per-show reclaim guard on every invocation, not just
         // when the panel transitions from hidden to visible: a second Cmd+Tab
         // while the panel is already up from the first one previously left
