@@ -3,14 +3,13 @@ import Foundation
 /// The small slice of app state the desktop widget actually needs -- written
 /// by the main app into the shared App Group container every time
 /// IntentStore saves, and read back by the widget extension's
-/// TimelineProvider. Deliberately minimal: no entry text, colors, or
-/// reminders, just what the v1 small widget renders. Pure/dependency-free
-/// like ActivityStats and IntentEntry, so it's safe to add to both targets'
-/// membership once the widget extension target exists.
+/// TimelineProvider. Just the pending to-do texts, in the same order as the
+/// main panel's own pending list -- no streaks/activity, no completed
+/// items, no colors/reminders/IDs, per request. Pure/dependency-free like
+/// ActivityStats and IntentEntry, so it's safe to add to both targets'
+/// membership.
 struct WidgetSnapshot: Codable {
-    let currentStreak: Int
-    let showStreak: Bool
-    let todayCompletedCount: Int
+    let pendingItems: [String]
     let generatedAt: Date
 
     /// The same group ID must be added as an App Group capability on both

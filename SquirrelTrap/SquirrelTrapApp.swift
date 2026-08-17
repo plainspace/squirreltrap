@@ -117,18 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         // Publishes a WidgetSnapshot to the shared App Group container
-        // whenever entries change or showStreak is toggled, so the desktop
-        // widget (once its extension target exists) stays current without
-        // any polling on its side. A harmless no-op until the App Group
-        // capability is actually configured -- WidgetSnapshot.write() skips
-        // silently if the shared container isn't available yet, and
-        // WidgetCenter.reloadAllTimelines() is a no-op with no widgets
-        // registered.
+        // whenever entries change, so the desktop widget stays current
+        // without any polling on its side.
         intentStore.$entries
-            .combineLatest(preferences.$showStreak)
-            .sink { [weak self] _, showStreak in
-                self?.publishWidgetSnapshot(showStreak: showStreak)
-            }
+            .sink { [weak self] _ in self?.publishWidgetSnapshot() }
             .store(in: &cancellables)
 
         let status = PermissionManager.status()
@@ -170,13 +162,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func publishWidgetSnapshot(showStreak: Bool) {
-        let snapshot = WidgetSnapshot(
-            currentStreak: intentStore.currentStreak,
-            showStreak: showStreak,
-            todayCompletedCount: intentStore.todayCompletedCount,
-            generatedAt: Date()
-        )
+    private func publishWidgetSnapshot() {
+        // Same order as the main panel's own pending list. Capped at 10 --
+        // more than the largest widget size actually has room to show, and
+        // the widget view itself trims further per its own family.
+        let pendingTexts = intentStore.visibleEntries.filter { !$0.completed }.prefix(10).map(\.text)
+        let snapshot = WidgetSnapshot(pendingItems: Array(pendingTexts), generatedAt: Date())
         WidgetSnapshot.write(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
     }

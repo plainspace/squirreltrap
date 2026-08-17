@@ -9,12 +9,11 @@ import SwiftUI
 /// Purely push-driven -- .never means WidgetKit won't waste its own refresh
 /// budget on a schedule that would just show stale data between real
 /// updates anyway. The main app calls WidgetCenter.reloadAllTimelines()
-/// itself whenever entries change or showStreak is toggled (see
-/// AppDelegate.publishWidgetSnapshot in the main target), which is what
-/// actually drives new timelines.
+/// itself whenever entries change (see AppDelegate.publishWidgetSnapshot in
+/// the main target), which is what actually drives new timelines.
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SnapshotEntry {
-        SnapshotEntry(date: Date(), snapshot: WidgetSnapshot(currentStreak: 3, showStreak: true, todayCompletedCount: 2, generatedAt: Date()))
+        SnapshotEntry(date: Date(), snapshot: WidgetSnapshot(pendingItems: ["Reply to Sam", "Pick up dry cleaning", "Draft Q3 outline"], generatedAt: Date()))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SnapshotEntry) -> Void) {
@@ -34,28 +33,50 @@ struct SnapshotEntry: TimelineEntry {
 }
 
 struct SquirrelTrapWidgetEntryView: View {
+    @Environment(\.widgetFamily) private var family
     var entry: Provider.Entry
+
+    private var maxItems: Int {
+        switch family {
+        case .systemSmall: return 3
+        case .systemMedium: return 5
+        default: return 10
+        }
+    }
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            VStack(spacing: 6) {
-                if snapshot.showStreak {
-                    HStack(spacing: 4) {
-                        Text("🔥")
-                        Text("\(snapshot.currentStreak)")
-                            .fontWeight(.bold)
-                        Text(snapshot.currentStreak == 1 ? "day" : "days")
+            if snapshot.pendingItems.isEmpty {
+                VStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                    Text("All caught up")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                let shown = Array(snapshot.pendingItems.prefix(maxItems))
+                let remaining = snapshot.pendingItems.count - shown.count
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(Array(shown.enumerated()), id: \.offset) { _, text in
+                        HStack(alignment: .top, spacing: 5) {
+                            Image(systemName: "circle")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 3)
+                            Text(text)
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                    }
+                    if remaining > 0 {
+                        Text("+\(remaining) more")
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    .font(.title3)
                 }
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                    Text("\(snapshot.todayCompletedCount) today")
-                        .foregroundStyle(.secondary)
-                }
-                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
             Text("Open Squirrel Trap to get started")
@@ -81,7 +102,7 @@ struct SquirrelTrapWidget: Widget {
             }
         }
         .configurationDisplayName("Squirrel Trap")
-        .description("Your current streak and today's completed count.")
-        .supportedFamilies([.systemSmall])
+        .description("Your pending to-dos, at a glance.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
