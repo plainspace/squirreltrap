@@ -1,0 +1,45 @@
+import Foundation
+
+/// The small slice of app state the desktop widget actually needs -- written
+/// by the main app into the shared App Group container every time
+/// IntentStore saves, and read back by the widget extension's
+/// TimelineProvider. Deliberately minimal: no entry text, colors, or
+/// reminders, just what the v1 small widget renders. Pure/dependency-free
+/// like ActivityStats and IntentEntry, so it's safe to add to both targets'
+/// membership once the widget extension target exists.
+struct WidgetSnapshot: Codable {
+    let currentStreak: Int
+    let showStreak: Bool
+    let todayCompletedCount: Int
+    let generatedAt: Date
+
+    /// The same group ID must be added as an App Group capability on both
+    /// the main app target and the widget extension target in Xcode's
+    /// Signing & Capabilities tab -- that's what actually provisions it,
+    /// not this string alone.
+    static let appGroupIdentifier = "group.com.jtoeman.squirreltrap"
+
+    private static let fileName = "widget_snapshot.json"
+
+    /// nil until the App Group capability is actually configured on this
+    /// target -- callers should treat a nil container as "widget isn't set
+    /// up yet" and silently skip writing, not as an error.
+    private static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+    }
+
+    static func write(_ snapshot: WidgetSnapshot) {
+        guard let containerURL else { return }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(snapshot) else { return }
+        try? data.write(to: containerURL.appendingPathComponent(fileName), options: .atomic)
+    }
+
+    static func read() -> WidgetSnapshot? {
+        guard let containerURL, let data = try? Data(contentsOf: containerURL.appendingPathComponent(fileName)) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(WidgetSnapshot.self, from: data)
+    }
+}

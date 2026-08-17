@@ -46,6 +46,7 @@
 		5FA1B2C3D4E5F607080900C7 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003D /* OnboardingView.swift */; };
 		5FA1B2C3D4E5F607080900C8 /* HelpTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003E /* HelpTip.swift */; };
 		5FA1B2C3D4E5F607080900C9 /* CoachTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003F /* CoachTip.swift */; };
+		5FA1B2C3D4E5F607080900CB /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */; };
 		5FA1B2C3D4E5F607080900CA /* CoachTipBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090040 /* CoachTipBubble.swift */; };
 /* End PBXBuildFile section */
 
@@ -88,6 +89,7 @@
 		5FA1B2C3D4E5F6070809003D /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F6070809003E /* HelpTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpTip.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F6070809003F /* CoachTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachTip.swift; sourceTree = "<group>"; };
+		5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090040 /* CoachTipBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachTipBubble.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090025 /* SnoozeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeButton.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090026 /* CloudSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncEngine.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				5FA1B2C3D4E5F6070809003A /* DebugBuildTag.swift */,
 				5FA1B2C3D4E5F6070809003B /* CelebrationTiming.swift */,
 				5FA1B2C3D4E5F6070809003F /* CoachTip.swift */,
+				5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -301,6 +304,7 @@
 				5FA1B2C3D4E5F607080900C4 /* DebugBuildTag.swift in Sources */,
 				5FA1B2C3D4E5F607080900C5 /* CelebrationTiming.swift in Sources */,
 				5FA1B2C3D4E5F607080900C9 /* CoachTip.swift in Sources */,
+				5FA1B2C3D4E5F607080900CB /* WidgetSnapshot.swift in Sources */,
 				5FA1B2C3D4E5F607080900C6 /* ColorTagGridPicker.swift in Sources */,
 				5FA1B2C3D4E5F607080900C7 /* OnboardingView.swift in Sources */,
 				5FA1B2C3D4E5F607080900C8 /* HelpTip.swift in Sources */,

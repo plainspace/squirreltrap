@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import UserNotifications
+import WidgetKit
 
 @main
 struct SquirrelTrapApp: App {
@@ -115,6 +116,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] visible in self?.updateStatusItem(visible: visible) }
             .store(in: &cancellables)
 
+        // Publishes a WidgetSnapshot to the shared App Group container
+        // whenever entries change or showStreak is toggled, so the desktop
+        // widget (once its extension target exists) stays current without
+        // any polling on its side. A harmless no-op until the App Group
+        // capability is actually configured -- WidgetSnapshot.write() skips
+        // silently if the shared container isn't available yet, and
+        // WidgetCenter.reloadAllTimelines() is a no-op with no widgets
+        // registered.
+        intentStore.$entries
+            .combineLatest(preferences.$showStreak)
+            .sink { [weak self] _, showStreak in
+                self?.publishWidgetSnapshot(showStreak: showStreak)
+            }
+            .store(in: &cancellables)
+
         let status = PermissionManager.status()
         debugLog("Squirrel Trap DEBUG: launch status = \(status)\n")
 
@@ -152,6 +168,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    private func publishWidgetSnapshot(showStreak: Bool) {
+        let snapshot = WidgetSnapshot(
+            currentStreak: intentStore.currentStreak,
+            showStreak: showStreak,
+            todayCompletedCount: intentStore.todayCompletedCount,
+            generatedAt: Date()
+        )
+        WidgetSnapshot.write(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func updateStatusItem(visible: Bool) {
