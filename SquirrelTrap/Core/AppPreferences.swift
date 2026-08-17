@@ -45,6 +45,13 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(celebrationEnabled, forKey: Keys.celebrationEnabled) }
     }
 
+    /// Hides the "🔥 N days" streak segment on the main panel entirely when
+    /// off -- today's completed count stays visible either way, since that's
+    /// a plain fact, not the streak/gamification mechanic itself.
+    @Published var showStreak: Bool {
+        didSet { UserDefaults.standard.set(showStreak, forKey: Keys.showStreak) }
+    }
+
     /// True once the first-run onboarding wizard has been completed -- see
     /// OnboardingView and PanelController.showOnboardingPanel(). Gates every
     /// normal entry point (Cmd+Tab, menu bar click, Cmd+,) until it's done,
@@ -188,6 +195,7 @@ final class AppPreferences: ObservableObject {
         static let inactivityTimeout = "inactivityTimeout"
         static let translucencyEnabled = "translucencyEnabled"
         static let celebrationEnabled = "celebrationEnabled"
+        static let showStreak = "showStreak"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let totalPanelShows = "totalPanelShows"
         static let dismissedCoachTips = "dismissedCoachTips"
@@ -233,6 +241,12 @@ final class AppPreferences: ObservableObject {
             celebrationEnabled = true
         } else {
             celebrationEnabled = UserDefaults.standard.bool(forKey: Keys.celebrationEnabled)
+        }
+
+        if UserDefaults.standard.object(forKey: Keys.showStreak) == nil {
+            showStreak = true
+        } else {
+            showStreak = UserDefaults.standard.bool(forKey: Keys.showStreak)
         }
 
         // A genuinely fresh install has no preferences at all yet --

@@ -171,11 +171,15 @@ struct PromptPanelView: View {
     private var activitySummary: some View {
         let days = intentStore.currentStreak
         return HStack(spacing: 4) {
-            Text("🔥")
-                .scaleEffect(iconScale)
-            Text("\(days) day\(days == 1 ? "" : "s")")
-                .foregroundStyle(viewModel.isCelebrating ? Color.accentColor : Color.panelTextSecondary)
-            Text("· ✓")
+            if preferences.showStreak {
+                Text("🔥")
+                    .scaleEffect(iconScale)
+                Text("\(days) day\(days == 1 ? "" : "s")")
+                    .foregroundStyle(viewModel.isCelebrating ? Color.accentColor : Color.panelTextSecondary)
+                Text("·")
+                    .foregroundStyle(Color.panelTextSecondary)
+            }
+            Text("✓")
                 .foregroundStyle(Color.panelTextSecondary)
             Text("\(intentStore.todayCompletedCount)")
                 .foregroundStyle(Color.panelTextSecondary)

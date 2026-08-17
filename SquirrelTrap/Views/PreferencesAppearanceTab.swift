@@ -61,6 +61,19 @@ struct PreferencesAppearanceTab: View {
 
             GridRow {
                 HStack(spacing: 4) {
+                    Text("Show Streak")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Shows the 🔥 day-streak counter on the main panel. Today's completed count stays visible either way.")
+                }
+                Toggle("", isOn: $preferences.showStreak)
+                    .labelsHidden()
+            }
+
+            onboardingDivider
+
+            GridRow {
+                HStack(spacing: 4) {
                     Text("Default Color")
                         .foregroundStyle(Color.panelTextSecondary)
                         .lineLimit(1)
