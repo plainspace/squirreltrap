@@ -16,5 +16,9 @@
 	<true/>
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.jtoeman.squirreltrap</string>
+	</array>
 </dict>
 </plist>
