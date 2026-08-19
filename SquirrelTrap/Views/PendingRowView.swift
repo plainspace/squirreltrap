@@ -6,6 +6,7 @@ import SwiftUI
 /// with no gesture conflicts.
 struct PendingRowView: View {
     let entry: IntentEntry
+    let themeAccent: Color
     var isHighlighted: Bool = false
     let onToggleCompleted: () -> Void
     let onToggleFavorite: () -> Void
@@ -27,6 +28,7 @@ struct PendingRowView: View {
         HStack(spacing: 6) {
             IntentRowView(
                 entry: entry,
+                themeAccent: themeAccent,
                 isHighlighted: isHighlighted || isDropTargeted,
                 onToggleCompleted: startCompletionAnimation,
                 onToggleFavorite: onToggleFavorite,
@@ -52,7 +54,7 @@ struct PendingRowView: View {
                     HStack(spacing: 10) {
                         Image(systemName: "circle")
                             .font(.system(size: 17))
-                            .foregroundStyle(Color.accentColor.opacity(0.5))
+                            .foregroundStyle(themeAccent.opacity(0.5))
                         Text(entry.text)
                             .font(.system(size: 13))
                             .foregroundStyle(Color.panelTextPrimary)
@@ -62,7 +64,7 @@ struct PendingRowView: View {
                     .padding(.vertical, 8)
                     .padding(.horizontal, 10)
                     .frame(width: 380, alignment: .leading)
-                    .glassCard()
+                    .glassCard(tint: themeAccent)
                 }
         }
         .scaleEffect(rowScale)

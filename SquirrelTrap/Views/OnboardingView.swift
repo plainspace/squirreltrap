@@ -106,7 +106,7 @@ struct OnboardingView: View {
                         .foregroundStyle(candidate == step ? Color.white : Color.panelTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
-                        .background(candidate == step ? Color.accentColor : Color.clear)
+                        .background(candidate == step ? preferences.panelTheme.accent : Color.clear)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -139,7 +139,7 @@ struct OnboardingView: View {
                     step = Step(rawValue: step.rawValue - 1) ?? .general
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(preferences.panelTheme.accent)
                 .font(.system(size: 13, weight: .medium))
             }
 
@@ -153,7 +153,7 @@ struct OnboardingView: View {
                 }
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(preferences.panelTheme.accent)
             .font(.system(size: 13, weight: .semibold))
             .keyboardShortcut(.defaultAction)
         }

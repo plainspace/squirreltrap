@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IntentRowView: View {
     let entry: IntentEntry
+    let themeAccent: Color
     var isHighlighted: Bool = false
     let onToggleCompleted: () -> Void
     let onToggleFavorite: () -> Void
@@ -30,7 +31,7 @@ struct IntentRowView: View {
             Button(action: onToggleCompleted) {
                 Image(systemName: entry.completed ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17))
-                    .foregroundStyle(entry.completed ? Color.accentColor : Color.accentColor.opacity(0.5))
+                    .foregroundStyle(entry.completed ? themeAccent : themeAccent.opacity(0.5))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(entry.completed ? "Mark not done" : "Mark done")
@@ -59,7 +60,7 @@ struct IntentRowView: View {
             Button(action: onToggleFavorite) {
                 Image(systemName: entry.favorite ? "star.fill" : "star")
                     .font(.system(size: 13))
-                    .foregroundStyle(entry.favorite ? Color("SunnyYellow") : Color.accentColor.opacity(0.5))
+                    .foregroundStyle(entry.favorite ? Color("SunnyYellow") : themeAccent.opacity(0.5))
             }
             .buttonStyle(.plain)
             .help(entry.favorite ? "Remove from favorites" : "Add to favorites")
@@ -69,7 +70,7 @@ struct IntentRowView: View {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(themeAccent)
                 }
                 .buttonStyle(.plain)
                 .help("Delete")
@@ -78,10 +79,10 @@ struct IntentRowView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
-        .glassCard(tint: entry.colorTag?.color ?? .accentColor)
+        .glassCard(tint: entry.colorTag?.color ?? themeAccent)
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.accentColor, lineWidth: isHighlighted ? 2 : 0)
+                .strokeBorder(themeAccent, lineWidth: isHighlighted ? 2 : 0)
         )
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHighlighted)
     }
@@ -103,7 +104,7 @@ struct IntentRowView: View {
         } label: {
             Image(systemName: entry.reminderDate != nil ? "alarm.fill" : "alarm")
                 .font(.system(size: 13))
-                .foregroundStyle(entry.reminderDate != nil ? Color.accentColor : Color.accentColor.opacity(0.5))
+                .foregroundStyle(entry.reminderDate != nil ? themeAccent : themeAccent.opacity(0.5))
         }
         .buttonStyle(.plain)
         .frame(width: 20, height: 20)
@@ -137,7 +138,7 @@ struct IntentRowView: View {
         } label: {
             Image(systemName: entry.colorTag != nil ? "paintpalette.fill" : "paintpalette")
                 .font(.system(size: 13))
-                .foregroundStyle(entry.colorTag?.color ?? Color.accentColor.opacity(0.5))
+                .foregroundStyle(entry.colorTag?.color ?? themeAccent.opacity(0.5))
         }
         .buttonStyle(.plain)
         .frame(width: 20, height: 20)

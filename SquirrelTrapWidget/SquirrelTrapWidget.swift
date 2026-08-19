@@ -13,7 +13,7 @@ import SwiftUI
 /// the main target), which is what actually drives new timelines.
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SnapshotEntry {
-        SnapshotEntry(date: Date(), snapshot: WidgetSnapshot(pendingItems: ["Reply to Sam", "Pick up dry cleaning", "Draft Q3 outline"], generatedAt: Date()))
+        SnapshotEntry(date: Date(), snapshot: WidgetSnapshot(pendingItems: ["Reply to Sam", "Pick up dry cleaning", "Draft Q3 outline"], theme: .blue, generatedAt: Date()))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SnapshotEntry) -> Void) {
@@ -33,18 +33,17 @@ struct SnapshotEntry: TimelineEntry {
 }
 
 /// The same two-layer color recipe PanelController uses for the real panel:
-/// a fixed opaque dark blue base (its opaqueFallbackView color) plus the
-/// accent-blue tint overlay on top -- so the widget reads as "Squirrel Trap
-/// blue" consistently regardless of desktop wallpaper, the same way the
-/// panel does regardless of what's behind it.
-private let widgetBackground = LinearGradient(
-    colors: [
-        Color(red: 0x2A / 255, green: 0x3D / 255, blue: 0x63 / 255),
-        Color(red: 0x24 / 255, green: 0x89 / 255, blue: 0xFF / 255).opacity(0.22),
-    ],
-    startPoint: .top,
-    endPoint: .bottom
-)
+/// its base fill plus its accent tinted in on top -- so the widget always
+/// matches whichever PanelTheme is currently selected in Preferences ->
+/// Appearance, the same way the panel itself does. Falls back to .blue
+/// (PanelTheme's own default) when no snapshot has been written yet.
+private func widgetBackground(for theme: PanelTheme) -> LinearGradient {
+    LinearGradient(
+        colors: [theme.base, theme.accent.opacity(0.22)],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+}
 
 struct SquirrelTrapWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
@@ -59,6 +58,7 @@ struct SquirrelTrapWidgetEntryView: View {
     }
 
     private var showsHeader: Bool { family != .systemSmall }
+    private var theme: PanelTheme { entry.snapshot?.theme ?? .blue }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -86,7 +86,7 @@ struct SquirrelTrapWidgetEntryView: View {
                             HStack(alignment: .top, spacing: 6) {
                                 Image(systemName: "circle")
                                     .font(.system(size: 9))
-                                    .foregroundStyle(Color.accentColor.opacity(0.7))
+                                    .foregroundStyle(theme.accent.opacity(0.7))
                                     .padding(.top, 2)
                                 Text(text)
                                     .font(.system(size: 12))
@@ -118,13 +118,14 @@ struct SquirrelTrapWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
+            let theme = entry.snapshot?.theme ?? .blue
             if #available(macOS 14.0, *) {
                 SquirrelTrapWidgetEntryView(entry: entry)
-                    .containerBackground(for: .widget) { widgetBackground }
+                    .containerBackground(for: .widget) { widgetBackground(for: theme) }
             } else {
                 SquirrelTrapWidgetEntryView(entry: entry)
                     .padding()
-                    .background(widgetBackground)
+                    .background(widgetBackground(for: theme))
             }
         }
         .configurationDisplayName("Squirrel Trap")

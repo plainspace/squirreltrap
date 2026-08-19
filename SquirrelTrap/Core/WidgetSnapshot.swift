@@ -2,14 +2,16 @@ import Foundation
 
 /// The small slice of app state the desktop widget actually needs -- written
 /// by the main app into the shared App Group container every time
-/// IntentStore saves, and read back by the widget extension's
-/// TimelineProvider. Just the pending to-do texts, in the same order as the
-/// main panel's own pending list -- no streaks/activity, no completed
-/// items, no colors/reminders/IDs, per request. Pure/dependency-free like
-/// ActivityStats and IntentEntry, so it's safe to add to both targets'
-/// membership.
+/// IntentStore saves (or the panel theme changes), and read back by the
+/// widget extension's TimelineProvider. Just the pending to-do texts, in the
+/// same order as the main panel's own pending list -- no streaks/activity,
+/// no completed items, no colors/reminders/IDs, per request -- plus the
+/// current PanelTheme so the widget always matches the main panel's look.
+/// Pure/dependency-free like ActivityStats and IntentEntry, so it's safe to
+/// add to both targets' membership.
 struct WidgetSnapshot: Codable {
     let pendingItems: [String]
+    let theme: PanelTheme
     let generatedAt: Date
 
     /// The same group ID must be added as an App Group capability on both

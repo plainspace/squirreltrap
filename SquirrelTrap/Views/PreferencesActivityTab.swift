@@ -33,7 +33,7 @@ struct PreferencesActivityTab: View {
                     x: .value("Day", day.date, unit: .day),
                     y: .value("Completed", day.count)
                 )
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(preferences.panelTheme.accent)
                 .annotation(position: .top) {
                     if day.count > 0 {
                         Text("\(day.count)")

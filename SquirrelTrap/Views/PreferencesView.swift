@@ -139,7 +139,7 @@ struct PreferencesView: View {
             .background {
                 if selectedTab == tab {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.35))
+                        .fill(preferences.panelTheme.accent.opacity(0.35))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -186,7 +186,7 @@ struct PreferencesView: View {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(preferences.panelTheme.accent)
             }
             .buttonStyle(.plain)
             .help("Back to Squirrel Trap")

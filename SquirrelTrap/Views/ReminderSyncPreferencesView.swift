@@ -157,7 +157,7 @@ struct ReminderSyncPreferencesView: View {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(preferences.panelTheme.accent)
             }
             .buttonStyle(.plain)
             .help("Back to Preferences")

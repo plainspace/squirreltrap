@@ -61,6 +61,7 @@ final class PanelController: NSObject {
     private var colorTintOverlay: NSView?
     private var currentHostingView: NSView?
     private var translucencyCancellable: AnyCancellable?
+    private var panelThemeCancellable: AnyCancellable?
     // Shown in place of whatever SwiftUI content is up (Prompt or Preferences,
     // wherever Snooze was clicked from) while the panel fades out slowly.
     private var snoozeMessageLabel: NSTextField?
@@ -670,7 +671,7 @@ final class PanelController: NSObject {
             x: cardMargin, y: cardMargin, width: cardSize.width, height: cardSize.height
         ))
         opaqueFallback.wantsLayer = true
-        opaqueFallback.layer?.backgroundColor = NSColor(red: 0x2A / 255, green: 0x3D / 255, blue: 0x63 / 255, alpha: 1).cgColor
+        opaqueFallback.layer?.backgroundColor = NSColor(preferences.panelTheme.base).cgColor
         opaqueFallback.layer?.cornerRadius = 14
         opaqueFallback.layer?.masksToBounds = true
         baseView.addSubview(opaqueFallback)
@@ -690,7 +691,7 @@ final class PanelController: NSObject {
 
         let tint = NSView(frame: effect.bounds)
         tint.wantsLayer = true
-        tint.layer?.backgroundColor = NSColor(red: 0x24 / 255, green: 0x89 / 255, blue: 0xFF / 255, alpha: 0.13).cgColor
+        tint.layer?.backgroundColor = NSColor(preferences.panelTheme.accent).withAlphaComponent(0.13).cgColor
         tint.autoresizingMask = [.width, .height]
         effect.addSubview(tint)
         colorTintOverlay = tint
@@ -773,6 +774,13 @@ final class PanelController: NSObject {
         translucencyCancellable = preferences.$translucencyEnabled.sink { [weak self] enabled in
             self?.effectView?.isHidden = !enabled
             self?.opaqueFallbackView?.isHidden = enabled
+        }
+
+        // Same "fires immediately" behavior as translucencyCancellable above
+        // -- also covers the initial theme, not just later changes.
+        panelThemeCancellable = preferences.$panelTheme.sink { [weak self] theme in
+            self?.opaqueFallbackView?.layer?.backgroundColor = NSColor(theme.base).cgColor
+            self?.colorTintOverlay?.layer?.backgroundColor = NSColor(theme.accent).withAlphaComponent(0.13).cgColor
         }
 
         return newPanel

@@ -49,6 +49,8 @@ struct PromptPanelView: View {
         self.onDragHandleHoverChanged = onDragHandleHoverChanged
     }
 
+    private var themeAccent: Color { preferences.panelTheme.accent }
+
     // Pending items always float above completed ones, each group newest-first.
     private var pendingEntries: [IntentEntry] {
         intentStore.visibleEntries.filter { !$0.completed }
@@ -71,7 +73,7 @@ struct PromptPanelView: View {
                     }
                     .font(.system(size: 11, weight: .medium))
                 }
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(themeAccent)
             }
 
             if reminderSyncEngine.isSyncing {
@@ -140,6 +142,7 @@ struct PromptPanelView: View {
     private func coachTipBubble(for tip: CoachTip) -> some View {
         CoachTipBubble(
             message: tip.message(preferences: preferences),
+            themeAccent: themeAccent,
             onDismiss: { activeCoachTip = nil },
             onDismissThisTipPermanently: { preferences.dismissedCoachTips.insert(tip.rawValue) }
         )
@@ -175,7 +178,7 @@ struct PromptPanelView: View {
                 Text("🔥")
                     .scaleEffect(iconScale)
                 Text("\(days) day\(days == 1 ? "" : "s")")
-                    .foregroundStyle(viewModel.isCelebrating ? Color.accentColor : Color.panelTextSecondary)
+                    .foregroundStyle(viewModel.isCelebrating ? themeAccent : Color.panelTextSecondary)
                 Text("·")
                     .foregroundStyle(Color.panelTextSecondary)
             }
@@ -227,7 +230,7 @@ struct PromptPanelView: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(themeAccent)
             }
             .buttonStyle(.plain)
             .help("Preferences")
@@ -274,7 +277,7 @@ struct PromptPanelView: View {
             } label: {
                 Image(systemName: "sparkles")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(themeAccent)
             }
             .buttonStyle(.plain)
             .help("Preview celebration (debug only)")
@@ -302,7 +305,7 @@ struct PromptPanelView: View {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Color.panelTextPrimary)
                     .padding(10)
-                    .glassCard()
+                    .glassCard(tint: themeAccent)
                     .focused($isInputFocused)
                     .onSubmit { viewModel.submit(dismiss: onDismiss) }
             }
@@ -312,7 +315,7 @@ struct PromptPanelView: View {
             } label: {
                 Image(systemName: viewModel.isShowingFavorites ? "star.fill" : "star")
                     .font(.system(size: 15))
-                    .foregroundStyle(viewModel.isShowingFavorites ? Color("SunnyYellow") : Color.accentColor.opacity(0.5))
+                    .foregroundStyle(viewModel.isShowingFavorites ? Color("SunnyYellow") : themeAccent.opacity(0.5))
             }
             .buttonStyle(.plain)
             .help("Favorites")
@@ -330,6 +333,7 @@ struct PromptPanelView: View {
                         ForEach(pendingEntries) { entry in
                             PendingRowView(
                                 entry: entry,
+                                themeAccent: themeAccent,
                                 isHighlighted: entry.id == viewModel.highlightedEntryID,
                                 onToggleCompleted: { viewModel.toggleCompleted(id: entry.id) },
                                 onToggleFavorite: { intentStore.toggleFavorite(id: entry.id) },
@@ -346,7 +350,7 @@ struct PromptPanelView: View {
                         // bottom of the pending list.
                         if !pendingEntries.isEmpty {
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(isEndDropTargeted ? Color.accentColor.opacity(0.24) : Color.clear)
+                                .fill(isEndDropTargeted ? themeAccent.opacity(0.24) : Color.clear)
                                 .frame(height: 14)
                                 .dropDestination(for: String.self) { items, _ in
                                     guard let draggedIDString = items.first, let draggedID = UUID(uuidString: draggedIDString) else { return false }
@@ -366,6 +370,7 @@ struct PromptPanelView: View {
                             ForEach(completedEntries) { entry in
                                 IntentRowView(
                                     entry: entry,
+                                    themeAccent: themeAccent,
                                     onToggleCompleted: { viewModel.toggleCompleted(id: entry.id) },
                                     onToggleFavorite: { intentStore.toggleFavorite(id: entry.id) },
                                     onDelete: { intentStore.delete(id: entry.id) }
@@ -396,7 +401,7 @@ struct PromptPanelView: View {
                                     HStack(spacing: 10) {
                                         Image(systemName: "arrow.clockwise.circle.fill")
                                             .font(.system(size: 15))
-                                            .foregroundStyle(Color.accentColor)
+                                            .foregroundStyle(themeAccent)
                                         Text(entry.text)
                                             .font(.system(size: 13))
                                             .foregroundStyle(Color.panelTextPrimary)
@@ -415,7 +420,7 @@ struct PromptPanelView: View {
                                 } label: {
                                     Image(systemName: "trash")
                                         .font(.system(size: 12))
-                                        .foregroundStyle(Color.accentColor)
+                                        .foregroundStyle(themeAccent)
                                 }
                                 .buttonStyle(.plain)
                                 .help("Remove from favorites")
@@ -423,7 +428,7 @@ struct PromptPanelView: View {
                             }
                             .padding(.vertical, 8)
                             .padding(.horizontal, 10)
-                            .glassCard()
+                            .glassCard(tint: themeAccent)
                         }
                     }
                 }

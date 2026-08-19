@@ -6,6 +6,7 @@ import SwiftUI
 /// back around once the cycle reaches it again), and a dismiss button.
 struct CoachTipBubble: View {
     let message: String
+    let themeAccent: Color
     var onDismiss: () -> Void
     var onDismissThisTipPermanently: () -> Void
 
@@ -31,7 +32,7 @@ struct CoachTipBubble: View {
                 onDismiss()
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(themeAccent)
             .font(.system(size: 12, weight: .semibold))
             .frame(maxWidth: .infinity, alignment: .trailing)
         }

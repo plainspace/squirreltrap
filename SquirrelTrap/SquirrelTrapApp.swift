@@ -117,9 +117,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         // Publishes a WidgetSnapshot to the shared App Group container
-        // whenever entries change, so the desktop widget stays current
-        // without any polling on its side.
+        // whenever entries or the panel theme change, so the desktop widget
+        // stays current (including matching the chosen theme) without any
+        // polling on its side.
         intentStore.$entries
+            .sink { [weak self] _ in self?.publishWidgetSnapshot() }
+            .store(in: &cancellables)
+        preferences.$panelTheme
             .sink { [weak self] _ in self?.publishWidgetSnapshot() }
             .store(in: &cancellables)
 
@@ -167,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // more than the largest widget size actually has room to show, and
         // the widget view itself trims further per its own family.
         let pendingTexts = intentStore.visibleEntries.filter { !$0.completed }.prefix(10).map(\.text)
-        let snapshot = WidgetSnapshot(pendingItems: Array(pendingTexts), generatedAt: Date())
+        let snapshot = WidgetSnapshot(pendingItems: Array(pendingTexts), theme: preferences.panelTheme, generatedAt: Date())
         WidgetSnapshot.write(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
     }

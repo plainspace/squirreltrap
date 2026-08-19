@@ -84,7 +84,7 @@ struct PreferencesAppearanceTab: View {
                 } label: {
                     Image(systemName: preferences.defaultColorTag != nil ? "paintpalette.fill" : "paintpalette")
                         .font(.system(size: 13))
-                        .foregroundStyle(preferences.defaultColorTag?.color ?? Color.accentColor.opacity(0.5))
+                        .foregroundStyle(preferences.defaultColorTag?.color ?? preferences.panelTheme.accent.opacity(0.5))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
@@ -94,6 +94,18 @@ struct PreferencesAppearanceTab: View {
                         isShowingDefaultColorPicker = false
                     }
                 }
+            }
+
+            onboardingDivider
+
+            GridRow {
+                HStack(spacing: 4) {
+                    Text("Panel Theme")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Changes the panel's overall color, including the desktop widget.")
+                }
+                themeSwatches
             }
 
             onboardingDivider
@@ -112,7 +124,7 @@ struct PreferencesAppearanceTab: View {
         if permissionGranted {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(preferences.panelTheme.accent)
                 Text("Watching for Cmd+Tab")
                     .foregroundStyle(Color.panelTextSecondary)
             }
@@ -122,6 +134,37 @@ struct PreferencesAppearanceTab: View {
                 PermissionManager.requestAccessOrOpenSettings()
             }
             .controlSize(.small)
+        }
+    }
+
+    /// A row of small tappable swatches, one per PanelTheme -- each shows its
+    /// base fill with an accent-colored ring only around the currently
+    /// selected one, so picking a theme is a single click with no popover
+    /// (unlike per-item Default Color above, which needs a popover since it
+    /// includes 16 options plus "none").
+    private var themeSwatches: some View {
+        HStack(spacing: 6) {
+            ForEach(PanelTheme.allCases, id: \.self) { theme in
+                Button {
+                    preferences.panelTheme = theme
+                } label: {
+                    Circle()
+                        .fill(theme.base)
+                        .frame(width: 18, height: 18)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(Color.panelTextPrimary.opacity(0.3), lineWidth: 0.5)
+                        )
+                        .overlay(
+                            Circle()
+                                .strokeBorder(theme.accent, lineWidth: preferences.panelTheme == theme ? 2 : 0)
+                                .padding(-2)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(theme.displayName)
+                .accessibilityLabel(theme.displayName)
+            }
         }
     }
 }

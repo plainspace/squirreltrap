@@ -139,6 +139,12 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(defaultColorTag?.rawValue, forKey: Keys.defaultColorTag) }
     }
 
+    /// The panel's overall base/accent color pair (Preferences -> Appearance).
+    /// Also mirrored into WidgetSnapshot so the desktop widget always matches.
+    @Published var panelTheme: PanelTheme {
+        didSet { UserDefaults.standard.set(panelTheme.rawValue, forKey: Keys.panelTheme) }
+    }
+
     /// Opt-in, off by default — single-Mac users don't need this.
     @Published var iCloudSyncEnabled: Bool {
         didSet { UserDefaults.standard.set(iCloudSyncEnabled, forKey: Keys.iCloudSyncEnabled) }
@@ -210,6 +216,7 @@ final class AppPreferences: ObservableObject {
         static let defaultAlarmEnabled = "defaultAlarmEnabled"
         static let defaultAlarmDurationSeconds = "defaultAlarmDurationSeconds"
         static let defaultColorTag = "defaultColorTag"
+        static let panelTheme = "panelTheme"
         static let iCloudSyncEnabled = "iCloudSyncEnabled"
         static let hasSetUpCloudSync = "hasSetUpCloudSync"
         static let hasCreatedCloudSubscription = "hasCreatedCloudSubscription"
@@ -319,6 +326,7 @@ final class AppPreferences: ObservableObject {
         }
 
         defaultColorTag = UserDefaults.standard.string(forKey: Keys.defaultColorTag).flatMap(TodoColorTag.init(rawValue:))
+        panelTheme = UserDefaults.standard.string(forKey: Keys.panelTheme).flatMap(PanelTheme.init(rawValue:)) ?? .blue
 
         iCloudSyncEnabled = UserDefaults.standard.bool(forKey: Keys.iCloudSyncEnabled)
         hasSetUpCloudSync = UserDefaults.standard.bool(forKey: Keys.hasSetUpCloudSync)
