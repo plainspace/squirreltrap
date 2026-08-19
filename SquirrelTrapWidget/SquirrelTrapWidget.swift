@@ -32,6 +32,20 @@ struct SnapshotEntry: TimelineEntry {
     let snapshot: WidgetSnapshot?
 }
 
+/// The same two-layer color recipe PanelController uses for the real panel:
+/// a fixed opaque dark blue base (its opaqueFallbackView color) plus the
+/// accent-blue tint overlay on top -- so the widget reads as "Squirrel Trap
+/// blue" consistently regardless of desktop wallpaper, the same way the
+/// panel does regardless of what's behind it.
+private let widgetBackground = LinearGradient(
+    colors: [
+        Color(red: 0x2A / 255, green: 0x3D / 255, blue: 0x63 / 255),
+        Color(red: 0x24 / 255, green: 0x89 / 255, blue: 0xFF / 255).opacity(0.22),
+    ],
+    startPoint: .top,
+    endPoint: .bottom
+)
+
 struct SquirrelTrapWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
     var entry: Provider.Entry
@@ -44,46 +58,58 @@ struct SquirrelTrapWidgetEntryView: View {
         }
     }
 
+    private var showsHeader: Bool { family != .systemSmall }
+
     var body: some View {
-        if let snapshot = entry.snapshot {
-            if snapshot.pendingItems.isEmpty {
-                VStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                    Text("All caught up")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                let shown = Array(snapshot.pendingItems.prefix(maxItems))
-                let remaining = snapshot.pendingItems.count - shown.count
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(Array(shown.enumerated()), id: \.offset) { _, text in
-                        HStack(alignment: .top, spacing: 5) {
-                            Image(systemName: "circle")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 3)
-                            Text(text)
-                                .font(.caption)
-                                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 6) {
+            if showsHeader {
+                Text("Squirrel Trap")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.panelTextSecondary)
+            }
+
+            if let snapshot = entry.snapshot {
+                if snapshot.pendingItems.isEmpty {
+                    VStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.title2)
+                        Text("All caught up")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Color.panelTextSecondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    let shown = Array(snapshot.pendingItems.prefix(maxItems))
+                    let remaining = snapshot.pendingItems.count - shown.count
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(shown.enumerated()), id: \.offset) { _, text in
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: "circle")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(Color.accentColor.opacity(0.7))
+                                    .padding(.top, 2)
+                                Text(text)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color.panelTextPrimary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        if remaining > 0 {
+                            Text("+\(remaining) more")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.panelTextSecondary)
                         }
                     }
-                    if remaining > 0 {
-                        Text("+\(remaining) more")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("Open Squirrel Trap to get started")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.panelTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        } else {
-            Text("Open Squirrel Trap to get started")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -94,11 +120,11 @@ struct SquirrelTrapWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             if #available(macOS 14.0, *) {
                 SquirrelTrapWidgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
+                    .containerBackground(for: .widget) { widgetBackground }
             } else {
                 SquirrelTrapWidgetEntryView(entry: entry)
                     .padding()
-                    .background()
+                    .background(widgetBackground)
             }
         }
         .configurationDisplayName("Squirrel Trap")
