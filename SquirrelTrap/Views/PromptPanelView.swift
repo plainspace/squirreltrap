@@ -111,7 +111,15 @@ struct PromptPanelView: View {
         // respected and double-firing is harmless.
         .onExitCommand(perform: onEscape)
         .onAppear {
-            if !viewModel.isShowingFavorites { isInputFocused = true }
+            // Deferred a tick -- setting @FocusState synchronously inside
+            // onAppear can fire mid-update-cycle on macOS, which is what
+            // produces SwiftUI's "Publishing changes from within view
+            // updates is not allowed" console warning. Async lets the
+            // current update transaction finish first; the focus change
+            // still lands effectively instantly.
+            if !viewModel.isShowingFavorites {
+                DispatchQueue.main.async { isInputFocused = true }
+            }
             // A consent decision takes priority over the coach-tip rotation
             // on any appearance where it hasn't been answered yet -- both are
             // popovers anchored in this same view, and showing both at once
@@ -124,7 +132,9 @@ struct PromptPanelView: View {
             }
         }
         .onChange(of: viewModel.focusToken) { _, _ in
-            if !viewModel.isShowingFavorites { isInputFocused = true }
+            if !viewModel.isShowingFavorites {
+                DispatchQueue.main.async { isInputFocused = true }
+            }
         }
         .onChange(of: preferences.totalPanelShows) { _, _ in
             guard preferences.hasAskedAnalyticsConsent else { return }
