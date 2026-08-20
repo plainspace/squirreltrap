@@ -52,6 +52,24 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(showStreak, forKey: Keys.showStreak) }
     }
 
+    /// Opt-in, off by default for every install (fresh or existing) -- see
+    /// AnalyticsConsentPrompt, shown once per hasAskedAnalyticsConsent below.
+    /// Mirrored into AnalyticsService.shared.updateConsent(enabled:) so
+    /// individual call sites never need their own "if enabled" guard.
+    @Published var analyticsEnabled: Bool {
+        didSet { UserDefaults.standard.set(analyticsEnabled, forKey: Keys.analyticsEnabled) }
+    }
+
+    /// Guards AnalyticsConsentPrompt to exactly once, ever, regardless of
+    /// which way the user answers -- unlike onboarding/coach tips, a consent
+    /// decision doesn't get re-asked or rotated back into view. Deliberately
+    /// NOT exempted for existing installs the way other new gates are (see
+    /// isExistingInstall below): consent has to actually be asked, not
+    /// silently defaulted.
+    @Published var hasAskedAnalyticsConsent: Bool {
+        didSet { UserDefaults.standard.set(hasAskedAnalyticsConsent, forKey: Keys.hasAskedAnalyticsConsent) }
+    }
+
     /// True once the first-run onboarding wizard has been completed -- see
     /// OnboardingView and PanelController.showOnboardingPanel(). Gates every
     /// normal entry point (Cmd+Tab, menu bar click, Cmd+,) until it's done,
@@ -217,6 +235,8 @@ final class AppPreferences: ObservableObject {
         static let defaultAlarmDurationSeconds = "defaultAlarmDurationSeconds"
         static let defaultColorTag = "defaultColorTag"
         static let panelTheme = "panelTheme"
+        static let analyticsEnabled = "analyticsEnabled"
+        static let hasAskedAnalyticsConsent = "hasAskedAnalyticsConsent"
         static let iCloudSyncEnabled = "iCloudSyncEnabled"
         static let hasSetUpCloudSync = "hasSetUpCloudSync"
         static let hasCreatedCloudSubscription = "hasCreatedCloudSubscription"
@@ -327,6 +347,8 @@ final class AppPreferences: ObservableObject {
 
         defaultColorTag = UserDefaults.standard.string(forKey: Keys.defaultColorTag).flatMap(TodoColorTag.init(rawValue:))
         panelTheme = UserDefaults.standard.string(forKey: Keys.panelTheme).flatMap(PanelTheme.init(rawValue:)) ?? .blue
+        analyticsEnabled = UserDefaults.standard.bool(forKey: Keys.analyticsEnabled)
+        hasAskedAnalyticsConsent = UserDefaults.standard.bool(forKey: Keys.hasAskedAnalyticsConsent)
 
         iCloudSyncEnabled = UserDefaults.standard.bool(forKey: Keys.iCloudSyncEnabled)
         hasSetUpCloudSync = UserDefaults.standard.bool(forKey: Keys.hasSetUpCloudSync)

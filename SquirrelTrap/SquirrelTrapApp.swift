@@ -116,6 +116,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] visible in self?.updateStatusItem(visible: visible) }
             .store(in: &cancellables)
 
+        // Mirrors the consent toggle into the SDK immediately (covers both
+        // the launch-time initial value and any later change from
+        // AnalyticsConsentPrompt or the Preferences toggle) and keeps user
+        // properties current for segmentation -- see AnalyticsService.
+        AnalyticsService.shared.updateConsent(enabled: preferences.analyticsEnabled)
+        AnalyticsService.shared.updateUserProperties(preferences: preferences)
+        preferences.$analyticsEnabled
+            .sink { enabled in AnalyticsService.shared.updateConsent(enabled: enabled) }
+            .store(in: &cancellables)
+        preferences.$panelTheme
+            .sink { [weak self] _ in self?.refreshAnalyticsUserProperties() }
+            .store(in: &cancellables)
+        preferences.$showStreak
+            .sink { [weak self] _ in self?.refreshAnalyticsUserProperties() }
+            .store(in: &cancellables)
+        preferences.$celebrationEnabled
+            .sink { [weak self] _ in self?.refreshAnalyticsUserProperties() }
+            .store(in: &cancellables)
+        preferences.$defaultAlarmEnabled
+            .sink { [weak self] _ in self?.refreshAnalyticsUserProperties() }
+            .store(in: &cancellables)
+
         // Publishes a WidgetSnapshot to the shared App Group container
         // whenever entries or the panel theme change, so the desktop widget
         // stays current (including matching the chosen theme) without any
@@ -164,6 +186,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    private func refreshAnalyticsUserProperties() {
+        AnalyticsService.shared.updateUserProperties(preferences: preferences)
     }
 
     private func publishWidgetSnapshot() {

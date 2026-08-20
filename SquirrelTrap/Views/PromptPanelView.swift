@@ -20,6 +20,9 @@ struct PromptPanelView: View {
     // fired is (implicitly, via AppPreferences.totalPanelShows only ever
     // equaling any given trigger count once).
     @State private var activeCoachTip: CoachTip?
+    // Gates AnalyticsConsentPrompt to at most once per launch even if this
+    // view re-appears multiple times before the user answers it.
+    @State private var isShowingAnalyticsConsent = false
     var onDismiss: () -> Void
     var onEscape: () -> Void
     var onOpenPreferences: () -> Void
@@ -109,12 +112,31 @@ struct PromptPanelView: View {
         .onExitCommand(perform: onEscape)
         .onAppear {
             if !viewModel.isShowingFavorites { isInputFocused = true }
-            checkForCoachTip()
+            // A consent decision takes priority over the coach-tip rotation
+            // on any appearance where it hasn't been answered yet -- both are
+            // popovers anchored in this same view, and showing both at once
+            // would just be visual noise for a choice that only needs asking
+            // one time, ever.
+            if !preferences.hasAskedAnalyticsConsent {
+                isShowingAnalyticsConsent = true
+            } else {
+                checkForCoachTip()
+            }
         }
         .onChange(of: viewModel.focusToken) { _, _ in
             if !viewModel.isShowingFavorites { isInputFocused = true }
         }
-        .onChange(of: preferences.totalPanelShows) { _, _ in checkForCoachTip() }
+        .onChange(of: preferences.totalPanelShows) { _, _ in
+            guard preferences.hasAskedAnalyticsConsent else { return }
+            checkForCoachTip()
+        }
+    }
+
+    private func decideAnalyticsConsent(enabled: Bool) {
+        preferences.analyticsEnabled = enabled
+        preferences.hasAskedAnalyticsConsent = true
+        AnalyticsService.shared.updateConsent(enabled: enabled)
+        isShowingAnalyticsConsent = false
     }
 
     /// Every 4th show starting at the 2nd (2, 6, 10, 14, ...) picks the next
@@ -127,14 +149,21 @@ struct PromptPanelView: View {
         guard count >= 2, (count - 2).isMultiple(of: 4) else { return }
         let undismissed = CoachTip.allCases.filter { !preferences.dismissedCoachTips.contains($0.rawValue) }
         guard !undismissed.isEmpty else { return }
-        activeCoachTip = undismissed[preferences.coachTipRotationIndex % undismissed.count]
+        let tip = undismissed[preferences.coachTipRotationIndex % undismissed.count]
+        activeCoachTip = tip
         preferences.coachTipRotationIndex += 1
+        AnalyticsService.shared.track(.coachTipShown, properties: ["tip_id": tip.rawValue])
     }
 
     private func coachTipPopoverBinding(for tip: CoachTip) -> Binding<Bool> {
         Binding(
             get: { activeCoachTip == tip },
-            set: { isPresented in if !isPresented { activeCoachTip = nil } }
+            set: { isPresented in
+                if !isPresented {
+                    activeCoachTip = nil
+                    AnalyticsService.shared.track(.coachTipDismissed, properties: ["tip_id": tip.rawValue])
+                }
+            }
         )
     }
 
@@ -153,6 +182,9 @@ struct PromptPanelView: View {
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(Color.panelTextSecondary)
             .frame(maxWidth: .infinity, alignment: .center)
+            .popover(isPresented: $isShowingAnalyticsConsent) {
+                AnalyticsConsentPrompt(themeAccent: themeAccent, onDecide: decideAnalyticsConsent)
+            }
     }
 
     // Debug builds only -- see DebugBuildTag.swift.
@@ -373,7 +405,10 @@ struct PromptPanelView: View {
                                     themeAccent: themeAccent,
                                     onToggleCompleted: { viewModel.toggleCompleted(id: entry.id) },
                                     onToggleFavorite: { intentStore.toggleFavorite(id: entry.id) },
-                                    onDelete: { intentStore.delete(id: entry.id) }
+                                    onDelete: {
+                                        intentStore.delete(id: entry.id)
+                                        AnalyticsService.shared.track(.taskDeleted)
+                                    }
                                 )
                             }
                         }

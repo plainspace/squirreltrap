@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5FA1B2C3D4E5F607080900D1 /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5FA1B2C3D4E5F607080900D2 /* AmplitudeSwift */; };
+		5FA1B2C3D4E5F607080900D6 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F607080900D5 /* Analytics.swift */; };
 		5FA1B2C3D4E5F607080900A1 /* SquirrelTrapApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809000B /* SquirrelTrapApp.swift */; };
 		5FA1B2C3D4E5F607080900A2 /* AppSwitchMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809000F /* AppSwitchMonitor.swift */; };
 		5FA1B2C3D4E5F607080900A3 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090010 /* PermissionManager.swift */; };
@@ -47,6 +49,7 @@
 		5FA1B2C3D4E5F607080900C8 /* HelpTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003E /* HelpTip.swift */; };
 		5FA1B2C3D4E5F607080900C9 /* CoachTip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F6070809003F /* CoachTip.swift */; };
 		5FA1B2C3D4E5F607080900CA /* CoachTipBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090040 /* CoachTipBubble.swift */; };
+		5FA1B2C3D4E5F607080900D8 /* AnalyticsConsentPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F607080900D7 /* AnalyticsConsentPrompt.swift */; };
 		5FA1B2C3D4E5F607080900CB /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */; };
 		5FA1B2C3D4E5F607080900CC /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */; };
 		5FA1B2C3D4E5F607080900CF /* PanelTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA1B2C3D4E5F607080900CE /* PanelTheme.swift */; };
@@ -126,8 +129,10 @@
 		5FA1B2C3D4E5F6070809003E /* HelpTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpTip.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F6070809003F /* CoachTip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachTip.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090040 /* CoachTipBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachTipBubble.swift; sourceTree = "<group>"; };
+		5FA1B2C3D4E5F607080900D7 /* AnalyticsConsentPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsConsentPrompt.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		5FA1B2C3D4E5F607080900CE /* PanelTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelTheme.swift; sourceTree = "<group>"; };
+		5FA1B2C3D4E5F607080900D5 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
 		884D03713033989B000A8F6A /* SquirrelTrapWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SquirrelTrapWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		884D03733033989B000A8F6A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		884D03753033989B000A8F6A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -153,6 +158,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5FA1B2C3D4E5F607080900D1 /* AmplitudeSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -223,6 +229,7 @@
 				5FA1B2C3D4E5F6070809003F /* CoachTip.swift */,
 				5FA1B2C3D4E5F60708090041 /* WidgetSnapshot.swift */,
 				5FA1B2C3D4E5F607080900CE /* PanelTheme.swift */,
+				5FA1B2C3D4E5F607080900D5 /* Analytics.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -247,6 +254,7 @@
 				5FA1B2C3D4E5F6070809003D /* OnboardingView.swift */,
 				5FA1B2C3D4E5F6070809003E /* HelpTip.swift */,
 				5FA1B2C3D4E5F60708090040 /* CoachTipBubble.swift */,
+				5FA1B2C3D4E5F607080900D7 /* AnalyticsConsentPrompt.swift */,
 				5FA1B2C3D4E5F60708090022 /* PendingRowView.swift */,
 				5FA1B2C3D4E5F60708090017 /* PermissionRequestView.swift */,
 				5FA1B2C3D4E5F6070809001C /* PreferencesView.swift */,
@@ -291,6 +299,9 @@
 				884D03823033989D000A8F6A /* PBXTargetDependency */,
 			);
 			name = SquirrelTrap;
+			packageProductDependencies = (
+				5FA1B2C3D4E5F607080900D2 /* AmplitudeSwift */,
+			);
 			productName = SquirrelTrap;
 			productReference = 5FA1B2C3D4E5F60708090003 /* SquirrelTrap.app */;
 			productType = "com.apple.product-type.application";
@@ -345,6 +356,9 @@
 				Base,
 			);
 			mainGroup = 5FA1B2C3D4E5F60708090004;
+			packageReferences = (
+				5FA1B2C3D4E5F607080900D3 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */,
+			);
 			productRefGroup = 5FA1B2C3D4E5F60708090005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -415,10 +429,12 @@
 				5FA1B2C3D4E5F607080900C9 /* CoachTip.swift in Sources */,
 				5FA1B2C3D4E5F607080900CB /* WidgetSnapshot.swift in Sources */,
 				5FA1B2C3D4E5F607080900CF /* PanelTheme.swift in Sources */,
+				5FA1B2C3D4E5F607080900D6 /* Analytics.swift in Sources */,
 				5FA1B2C3D4E5F607080900C6 /* ColorTagGridPicker.swift in Sources */,
 				5FA1B2C3D4E5F607080900C7 /* OnboardingView.swift in Sources */,
 				5FA1B2C3D4E5F607080900C8 /* HelpTip.swift in Sources */,
 				5FA1B2C3D4E5F607080900CA /* CoachTipBubble.swift in Sources */,
+				5FA1B2C3D4E5F607080900D8 /* AnalyticsConsentPrompt.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -730,6 +746,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5FA1B2C3D4E5F607080900D3 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/amplitude/Amplitude-Swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.18.7;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5FA1B2C3D4E5F607080900D2 /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5FA1B2C3D4E5F607080900D3 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5FA1B2C3D4E5F60708090001 /* Project object */;
 }

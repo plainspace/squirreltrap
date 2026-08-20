@@ -125,6 +125,7 @@ struct PreferencesView: View {
     private func tabButton(_ tab: PreferencesTab) -> some View {
         Button {
             selectedTab = tab
+            AnalyticsService.shared.track(.preferencesTabOpened, properties: ["tab": tab.rawValue])
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: tab.icon)

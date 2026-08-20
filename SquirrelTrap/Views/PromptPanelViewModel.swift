@@ -42,6 +42,10 @@ final class PromptPanelViewModel: ObservableObject {
         let isCompleting = !entry.completed
         intentStore.toggleCompleted(id: id)
         guard isCompleting else { return }
+        AnalyticsService.shared.track(.taskCompleted, properties: [
+            "time_since_created_seconds": Date().timeIntervalSince(entry.createdAt),
+            "had_reminder": entry.reminderDate != nil,
+        ])
         if entry.reminderDate != nil {
             cancelReminder(for: id)
         }
@@ -100,6 +104,10 @@ final class PromptPanelViewModel: ObservableObject {
             preferences.snoozeUntil = Date().addingTimeInterval(preferences.snoozeDurationMinutes * 60)
             debugLog("Squirrel Trap DEBUG: [addEntry] auto-snooze set snoozeUntil=\(preferences.snoozeUntil!)\n")
         }
+        AnalyticsService.shared.track(.taskAdded, properties: [
+            "has_color_tag": preferences.defaultColorTag != nil,
+            "has_reminder": preferences.defaultAlarmEnabled,
+        ])
         return entry
     }
 

@@ -187,6 +187,7 @@ final class PanelController: NSObject {
         // Drives CoachTip's triggerCount checks in PromptPanelView -- only
         // counts real prompt-panel shows, never Preferences/onboarding ones.
         preferences.totalPanelShows += 1
+        AnalyticsService.shared.track(.panelOpened, properties: ["has_highlight": entryID != nil])
         // Re-arm the once-per-show reclaim guard on every invocation, not just
         // when the panel transitions from hidden to visible: a second Cmd+Tab
         // while the panel is already up from the first one previously left
@@ -593,6 +594,7 @@ final class PanelController: NSObject {
         }
         let minutes = Int(preferences.snoozeDurationMinutes)
         preferences.snoozeUntil = Date().addingTimeInterval(preferences.snoozeDurationMinutes * 60)
+        AnalyticsService.shared.track(.snoozed, properties: ["duration_minutes": minutes])
 
         let message = "Snoozing Squirrel Trap for \(minutes) Minute\(minutes == 1 ? "" : "s")"
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion

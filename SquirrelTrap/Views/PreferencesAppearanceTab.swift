@@ -111,6 +111,25 @@ struct PreferencesAppearanceTab: View {
             onboardingDivider
 
             GridRow {
+                HStack(spacing: 4) {
+                    Text("Share Usage Data")
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .lineLimit(1)
+                    HelpTip("Shares anonymous usage data -- which features get used, not your to-do text -- to help guide future updates. Off by default.")
+                }
+                Toggle("", isOn: $preferences.analyticsEnabled)
+                    .labelsHidden()
+                    // Deciding here (e.g. during onboarding) counts as having
+                    // answered -- otherwise AnalyticsConsentPrompt would still
+                    // ask again right after, even though this already set it.
+                    .onChange(of: preferences.analyticsEnabled) { _, _ in
+                        preferences.hasAskedAnalyticsConsent = true
+                    }
+            }
+
+            onboardingDivider
+
+            GridRow {
                 Text("")
                 permissionStatus
             }
