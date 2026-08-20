@@ -122,6 +122,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // properties current for segmentation -- see AnalyticsService.
         AnalyticsService.shared.updateConsent(enabled: preferences.analyticsEnabled)
         AnalyticsService.shared.updateUserProperties(preferences: preferences)
+        // Deliberately placed after updateConsent above -- the SDK is created
+        // opted-out by default (see AnalyticsService.init), so tracking this
+        // any earlier in launch would always be silently dropped, even for a
+        // returning user who already granted consent last session.
+        AnalyticsService.shared.track(.appLaunched)
         preferences.$analyticsEnabled
             .sink { enabled in AnalyticsService.shared.updateConsent(enabled: enabled) }
             .store(in: &cancellables)
@@ -327,6 +332,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { [cloudSyncEngine] in
             await cloudSyncEngine.sync()
         }
+    }
+
+    // Covers Cmd+Q, the menu bar Quit item, and Preferences' Quit button (all
+    // route through NSApp.terminate(nil), same as panelController.onQuit
+    // above) -- not a hard kill, which never gives any process a chance to
+    // run code at all.
+    func applicationWillTerminate(_ notification: Notification) {
+        AnalyticsService.shared.trackAppQuit()
     }
 
     private func postReminderNotification(taskText: String?) {

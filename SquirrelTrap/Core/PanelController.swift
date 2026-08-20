@@ -146,8 +146,6 @@ final class PanelController: NSObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            let app = (notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.localizedName ?? "?"
-            debugLog("Squirrel Trap DEBUG: [didActivateApplication] \(app)\n")
             // NotificationCenter's queue:.main guarantees this always runs on the
             // main thread, but the closure type isn't statically MainActor-isolated
             // -- the Task hop satisfies the compiler without changing behavior.
@@ -261,15 +259,12 @@ final class PanelController: NSObject {
         guard let panel else { return }
         if !panel.isKeyWindow {
             panel.makeKeyAndOrderFront(nil)
-            debugLog("Squirrel Trap DEBUG: [grabPromptFocus] re-asserted key window, isKeyWindow=\(panel.isKeyWindow), attemptsRemaining=\(attemptsRemaining)\n")
         }
         guard panel.isKeyWindow, let contentContainer, let keyView = firstTextFieldView(in: contentContainer) else {
-            debugLog("Squirrel Trap DEBUG: [grabPromptFocus] not ready (isKeyWindow=\(panel.isKeyWindow)), attemptsRemaining=\(attemptsRemaining)\n")
             retryPromptFocusIfPossible(attemptsRemaining: attemptsRemaining)
             return
         }
         let success = panel.makeFirstResponder(keyView)
-        debugLog("Squirrel Trap DEBUG: [grabPromptFocus] makeFirstResponder success=\(success), attemptsRemaining=\(attemptsRemaining)\n")
         if !success {
             retryPromptFocusIfPossible(attemptsRemaining: attemptsRemaining)
         }
@@ -277,6 +272,9 @@ final class PanelController: NSObject {
 
     private func retryPromptFocusIfPossible(attemptsRemaining: Int) {
         guard attemptsRemaining > 0 else {
+            // The one log kept from this whole retry loop -- a real failure
+            // signal worth seeing if this regresses, unlike the per-attempt
+            // logging above which just drowned it out during normal use.
             debugLog("Squirrel Trap DEBUG: [grabPromptFocus] gave up, no attempts remaining\n")
             return
         }
@@ -409,8 +407,6 @@ final class PanelController: NSObject {
     }
 
     func hidePanel() {
-        let stack = Thread.callStackSymbols.prefix(6).joined(separator: "\n  ")
-        debugLog("Squirrel Trap DEBUG: [hidePanel] called, panel.isVisible=\(panel?.isVisible ?? false)\n  \(stack)\n")
         suppressEscapeDismiss = false
         panel?.orderOut(nil)
         panel?.alphaValue = 1
@@ -422,12 +418,9 @@ final class PanelController: NSObject {
 
     private func reclaimKeyFocusIfVisible() {
         guard let panel, panel.isVisible else {
-            debugLog("Squirrel Trap DEBUG: [reclaimKeyFocusIfVisible] skipped, panel.isVisible=\(panel?.isVisible ?? false)\n")
             return
         }
-        debugLog("Squirrel Trap DEBUG: [reclaimKeyFocusIfVisible] reclaiming key focus\n")
         panel.makeKeyAndOrderFront(nil)
-        debugLog("Squirrel Trap DEBUG: [reclaimKeyFocusIfVisible] after makeKeyAndOrderFront: isKeyWindow=\(panel.isKeyWindow), NSApp.isActive=\(NSApp.isActive)\n")
         // This makeKeyAndOrderFront is a SEPARATE key-window grab from the one
         // showPromptPanel() already scheduled -- some other app briefly
         // reactivating right after we present (observed in practice: Cmd+Tab
@@ -505,7 +498,6 @@ final class PanelController: NSObject {
     /// since the system consumes the Tab keydown before it ever reaches us.
     private func handlePotentialDismissKey(_ event: NSEvent) {
         guard !suppressEscapeDismiss, let panel, panel.isVisible else {
-            debugLog("Squirrel Trap DEBUG: [dismissKey] ignored (suppressEscapeDismiss=\(suppressEscapeDismiss), panelVisible=\(panel?.isVisible ?? false))\n")
             return
         }
         let watched: NSEvent.ModifierFlags = [.command, .option, .function]
@@ -514,14 +506,11 @@ final class PanelController: NSObject {
         case .keyDown:
             modifiersHeldAtRisk = []
             if event.keyCode == 53 {
-                debugLog("Squirrel Trap DEBUG: [dismissKey] keyDown Escape -> handleCancelOperation\n")
                 handleCancelOperation()
                 return
             }
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            debugLog("Squirrel Trap DEBUG: [dismissKey] keyDown keyCode=\(event.keyCode) flags=\(flags.rawValue)\n")
             if flags.contains(.command) || flags.contains(.control) {
-                debugLog("Squirrel Trap DEBUG: [dismissKey] Cmd/Control combo -> handleCancelOperation\n")
                 handleCancelOperation()
             }
 
@@ -529,10 +518,8 @@ final class PanelController: NSObject {
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let currentlyHeld = flags.intersection(watched)
             let wasHeld = modifiersHeldAtRisk
-            debugLog("Squirrel Trap DEBUG: [dismissKey] flagsChanged currentlyHeld=\(currentlyHeld.rawValue) wasHeld=\(wasHeld.rawValue)\n")
             if currentlyHeld.isEmpty, !wasHeld.isEmpty {
                 let wasRealSwitch = wasHeld.contains(.command) && (isSwitchGestureActive?() ?? false)
-                debugLog("Squirrel Trap DEBUG: [dismissKey] bare modifier released, wasRealSwitch=\(wasRealSwitch)\n")
                 if !wasRealSwitch {
                     handleCancelOperation()
                 }
@@ -756,20 +743,6 @@ final class PanelController: NSObject {
 
         panel = newPanel
 
-        // Diagnostic only: pinpoint the exact moment the panel silently loses
-        // key status, independent of (and possibly not explained by) any
-        // didActivateApplicationNotification we're already logging.
-        NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: newPanel, queue: .main
-        ) { _ in
-            debugLog("Squirrel Trap DEBUG: [panel] didResignKey, NSApp.isActive=\(NSApp.isActive)\n")
-        }
-        NotificationCenter.default.addObserver(
-            forName: NSWindow.didBecomeKeyNotification, object: newPanel, queue: .main
-        ) { _ in
-            debugLog("Squirrel Trap DEBUG: [panel] didBecomeKey, NSApp.isActive=\(NSApp.isActive)\n")
-        }
-
         // Fires immediately with the current value on subscribe, so the
         // right view is showing from the very first present() — no extra
         // "apply initial state" call needed.
@@ -826,8 +799,6 @@ final class PanelController: NSObject {
     }
 
     private func present() {
-        let stack = Thread.callStackSymbols.prefix(6).joined(separator: "\n  ")
-        debugLog("Squirrel Trap DEBUG: [present] called\n  \(stack)\n")
         guard let panel else { return }
         // Only reposition when the panel is opening fresh (Cmd+Tab, menu bar,
         // Cmd+,). Navigating between content within an already-visible panel
@@ -841,7 +812,6 @@ final class PanelController: NSObject {
             }
         }
         panel.makeKeyAndOrderFront(nil)
-        debugLog("Squirrel Trap DEBUG: [present] after makeKeyAndOrderFront: isKeyWindow=\(panel.isKeyWindow), NSApp.isActive=\(NSApp.isActive)\n")
         installGlobalClickMonitor()
         startActivityMonitoring()
         installDismissKeyMonitor()

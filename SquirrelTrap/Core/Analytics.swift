@@ -5,6 +5,8 @@ import Foundation
 /// String at each call site) so "what does Squirrel Trap send to Amplitude"
 /// is answerable by reading this one enum, not by grepping every call site.
 enum AnalyticsEvent: String {
+    case appLaunched = "App Launched"
+    case appQuit = "App Quit"
     case panelOpened = "Panel Opened"
     case taskAdded = "Task Added"
     case taskCompleted = "Task Completed"
@@ -51,6 +53,14 @@ final class AnalyticsService {
 
     func track(_ event: AnalyticsEvent, properties: [String: Any] = [:]) {
         amplitude.track(eventType: event.rawValue, eventProperties: properties)
+    }
+
+    /// Also flushes immediately, unlike every other track() call -- the app
+    /// process exits right after this fires, so there's no later moment left
+    /// for the SDK's normal background flush timer to run.
+    func trackAppQuit() {
+        amplitude.track(eventType: AnalyticsEvent.appQuit.rawValue, eventProperties: nil)
+        amplitude.flush()
     }
 
     /// Lets adoption of each toggle be sliced in Amplitude without a

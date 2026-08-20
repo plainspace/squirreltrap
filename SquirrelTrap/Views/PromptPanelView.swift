@@ -155,14 +155,22 @@ struct PromptPanelView: View {
         AnalyticsService.shared.track(.coachTipShown, properties: ["tip_id": tip.rawValue])
     }
 
+    /// Single choke point for every way a coach tip can close -- the "Got
+    /// it" button, clicking outside the popover, or Escape all end up here.
+    /// Dismissing always means permanently: there's no more per-tip "show
+    /// this again" opt-in, so any close drops the tip from the rotation for
+    /// good (recoverable only via Preferences -> Activity -> Reset All Tips).
+    private func dismissActiveCoachTip(_ tip: CoachTip) {
+        preferences.dismissedCoachTips.insert(tip.rawValue)
+        activeCoachTip = nil
+        AnalyticsService.shared.track(.coachTipDismissed, properties: ["tip_id": tip.rawValue])
+    }
+
     private func coachTipPopoverBinding(for tip: CoachTip) -> Binding<Bool> {
         Binding(
             get: { activeCoachTip == tip },
             set: { isPresented in
-                if !isPresented {
-                    activeCoachTip = nil
-                    AnalyticsService.shared.track(.coachTipDismissed, properties: ["tip_id": tip.rawValue])
-                }
+                if !isPresented { dismissActiveCoachTip(tip) }
             }
         )
     }
@@ -172,8 +180,7 @@ struct PromptPanelView: View {
         CoachTipBubble(
             message: tip.message(preferences: preferences),
             themeAccent: themeAccent,
-            onDismiss: { activeCoachTip = nil },
-            onDismissThisTipPermanently: { preferences.dismissedCoachTips.insert(tip.rawValue) }
+            onDismiss: { dismissActiveCoachTip(tip) }
         )
     }
 
