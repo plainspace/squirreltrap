@@ -31,7 +31,7 @@ struct PreferencesGeneralTab: View {
     }
 
     var body: some View {
-        Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
+        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
             GridRow {
                 HStack(spacing: 4) {
                     Text("Launch at Login")

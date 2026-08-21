@@ -7,6 +7,7 @@ import Foundation
 enum AnalyticsEvent: String {
     case appLaunched = "App Launched"
     case appQuit = "App Quit"
+    case onboardingCompleted = "Onboarding Completed"
     case panelOpened = "Panel Opened"
     case taskAdded = "Task Added"
     case taskCompleted = "Task Completed"
@@ -72,6 +73,7 @@ final class AnalyticsService {
             .set(property: "celebration_enabled", value: preferences.celebrationEnabled)
             .set(property: "default_alarm_enabled", value: preferences.defaultAlarmEnabled)
             .set(property: "panel_theme", value: preferences.panelTheme.rawValue)
+            .set(property: "show_tips", value: preferences.showTips)
         amplitude.identify(identify: identify)
     }
 }

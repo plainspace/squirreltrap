@@ -142,6 +142,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.$defaultAlarmEnabled
             .sink { [weak self] _ in self?.refreshAnalyticsUserProperties() }
             .store(in: &cancellables)
+        preferences.$showTips
+            .sink { [weak self] _ in self?.refreshAnalyticsUserProperties() }
+            .store(in: &cancellables)
 
         // Publishes a WidgetSnapshot to the shared App Group container
         // whenever entries or the panel theme change, so the desktop widget

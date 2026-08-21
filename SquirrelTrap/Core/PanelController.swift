@@ -370,6 +370,7 @@ final class PanelController: NSObject {
                     },
                     onFinished: { [weak self] in
                         self?.preferences.hasCompletedOnboarding = true
+                        AnalyticsService.shared.track(.onboardingCompleted)
                         self?.showPromptPanel()
                     }
                 )

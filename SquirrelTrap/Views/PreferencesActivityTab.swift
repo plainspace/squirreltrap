@@ -72,6 +72,20 @@ struct PreferencesActivityTab: View {
 
             Divider()
 
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                GridRow {
+                    HStack(spacing: 4) {
+                        Text("Show Tips")
+                            .foregroundStyle(Color.panelTextSecondary)
+                            .lineLimit(1)
+                        HelpTip("Occasional popovers that point out features like Snooze or Default Alarm. Turning this off doesn't lose your progress through them -- turn it back on and the rotation picks up where it left off.")
+                    }
+                    Toggle("", isOn: $preferences.showTips)
+                        .labelsHidden()
+                }
+            }
+            .font(.system(size: 12))
+
             HStack(spacing: 8) {
                 Button("Reset All Tips") {
                     preferences.dismissedCoachTips = []

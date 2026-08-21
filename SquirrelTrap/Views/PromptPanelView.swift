@@ -155,6 +155,7 @@ struct PromptPanelView: View {
     /// recurring as the cycle comes back around, so this doesn't stop until
     /// every tip has eventually been dismissed (or Reset All Tips runs).
     private func checkForCoachTip() {
+        guard preferences.showTips else { return }
         let count = preferences.totalPanelShows
         guard count >= 2, (count - 2).isMultiple(of: 4) else { return }
         let undismissed = CoachTip.allCases.filter { !preferences.dismissedCoachTips.contains($0.rawValue) }

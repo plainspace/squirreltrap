@@ -103,6 +103,16 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(coachTipRotationIndex, forKey: Keys.coachTipRotationIndex) }
     }
 
+    /// Master switch for the whole coach-tip rotation -- on by default
+    /// (tips are meant to unveil real features), but some users just find
+    /// any recurring popover annoying regardless of content. Independent of
+    /// dismissedCoachTips: turning this off doesn't dismiss anything, it
+    /// just stops checkForCoachTip from ever firing, so turning it back on
+    /// resumes exactly where the rotation left off.
+    @Published var showTips: Bool {
+        didSet { UserDefaults.standard.set(showTips, forKey: Keys.showTips) }
+    }
+
     @Published var reminderSyncDirection: ReminderSyncDirection {
         didSet { UserDefaults.standard.set(reminderSyncDirection.rawValue, forKey: Keys.reminderSyncDirection) }
     }
@@ -224,6 +234,7 @@ final class AppPreferences: ObservableObject {
         static let totalPanelShows = "totalPanelShows"
         static let dismissedCoachTips = "dismissedCoachTips"
         static let coachTipRotationIndex = "coachTipRotationIndex"
+        static let showTips = "showTips"
         static let reminderSyncDirection = "reminderSyncDirection"
         static let reminderSyncEveryNInvocations = "reminderSyncEveryNInvocations"
         static let reminderSyncListIdentifier = "reminderSyncListIdentifier"
@@ -311,6 +322,11 @@ final class AppPreferences: ObservableObject {
         }
 
         coachTipRotationIndex = UserDefaults.standard.integer(forKey: Keys.coachTipRotationIndex)
+        if UserDefaults.standard.object(forKey: Keys.showTips) == nil {
+            showTips = true
+        } else {
+            showTips = UserDefaults.standard.bool(forKey: Keys.showTips)
+        }
 
         if let rawValue = UserDefaults.standard.string(forKey: Keys.reminderSyncDirection),
            let direction = ReminderSyncDirection(rawValue: rawValue) {
