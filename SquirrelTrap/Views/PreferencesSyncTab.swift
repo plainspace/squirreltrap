@@ -33,6 +33,7 @@ struct PreferencesSyncTab: View {
                 HStack(spacing: 6) {
                     Toggle("", isOn: $preferences.iCloudSyncEnabled)
                         .labelsHidden()
+                        .disabled(!cloudSyncEngine.isAvailable)
                         .onChange(of: preferences.iCloudSyncEnabled) { oldValue, newValue in
                             // Same reasoning as Reminders sync: flip the toggle on and
                             // wait for the every-Nth-show fallback (or a push that
