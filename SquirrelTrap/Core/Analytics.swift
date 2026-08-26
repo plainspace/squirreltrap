@@ -74,6 +74,11 @@ final class AnalyticsService {
             .set(property: "default_alarm_enabled", value: preferences.defaultAlarmEnabled)
             .set(property: "panel_theme", value: preferences.panelTheme.rawValue)
             .set(property: "show_tips", value: preferences.showTips)
+            // Read fresh from the system rather than AppPreferences -- this
+            // toggle lives in ServiceManagement, not in AppPreferences, so
+            // there's no @Published to key a Combine subscription off. Cheap
+            // enough to just re-read it every time this already gets called.
+            .set(property: "launch_at_login_enabled", value: LaunchAtLoginManager.isEnabled)
         amplitude.identify(identify: identify)
     }
 }

@@ -43,6 +43,7 @@ struct PreferencesGeneralTab: View {
                     .labelsHidden()
                     .onChange(of: launchAtLoginEnabled) { _, newValue in
                         LaunchAtLoginManager.setEnabled(newValue)
+                        AnalyticsService.shared.updateUserProperties(preferences: preferences)
                     }
             }
 

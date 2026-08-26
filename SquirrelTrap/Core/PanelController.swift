@@ -394,6 +394,17 @@ final class PanelController: NSObject {
         // dismiss-key mechanisms that are fine for the ephemeral Cmd+Tab
         // prompt must not apply here either.
         isShowingStickyContent = true
+        // Onboarding should always present Share Usage Data as a genuinely
+        // undecided choice, never pre-answer it with a leftover value the
+        // user never consciously chose *here* -- e.g. a prior real decision
+        // that got left in place by a debug reset of hasAskedAnalyticsConsent
+        // alone (onboarding replayed for testing without also clearing this).
+        // Only resets it when the consent question hasn't actually been
+        // answered yet, so a real prior "yes" from this exact flow is never
+        // silently discarded.
+        if !preferences.hasAskedAnalyticsConsent {
+            preferences.analyticsEnabled = false
+        }
         _ = obtainPanel()
         let controller = onboardingHostingController ?? {
             let controller = NSHostingController(

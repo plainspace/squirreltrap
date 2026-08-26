@@ -30,11 +30,21 @@ struct ReminderSyncPreferencesView: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .onChange(of: preferences.reminderSyncDirection) { oldValue, newValue in
-                    // Turning sync on for the first time should force picking a
-                    // list right away (which forces the permission prompt too),
-                    // rather than silently no-op'ing on the next sync attempt.
+                    // Turning sync on for the first time defaults to a
+                    // dedicated private "Squirrel Trap" list (auto-created if
+                    // needed) rather than leaving no list chosen -- picking an
+                    // existing list is still just as available below, but the
+                    // zero-click default is never one that might already be
+                    // shared with other people. This also forces the
+                    // permission prompt right away rather than silently
+                    // no-op'ing on the next sync attempt.
                     guard oldValue == .off, newValue != .off, preferences.reminderSyncListIdentifier == nil else { return }
-                    Task { await loadLists() }
+                    Task {
+                        if let calendar = await syncEngine.dedicatedListOrCreate() {
+                            preferences.reminderSyncListIdentifier = calendar.calendarIdentifier
+                        }
+                        await loadLists()
+                    }
                 }
             }
             .font(.system(size: 12))
@@ -110,6 +120,10 @@ struct ReminderSyncPreferencesView: View {
                 }
                 .controlSize(.small)
             }
+
+            Text("Defaults to a private \"Squirrel Trap\" list just for this app -- pick a different one below if you'd rather use an existing list.")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.panelTextSecondary)
 
             if isLoadingLists {
                 ProgressView()

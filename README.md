@@ -51,13 +51,14 @@ If it doesn't show up automatically in **System Settings → Privacy & Security 
 
 ## What it does with your data
 
-Everything you log is stored locally at `~/Library/Application Support/SquirrelTrap/` by default — no account, no server, nothing leaves your Mac unless you turn on sync yourself.
+Everything you log is stored locally at `~/Library/Application Support/SquirrelTrap/` by default, in a plain (unencrypted) JSON file — no account, no server, nothing leaves your Mac unless you turn on sync or usage sharing yourself. **FileVault is what actually protects this file at rest** if your Mac is lost or stolen; without it, anyone with local access to the disk can read your to-do history in plain text.
 
-Two sync options exist, both off by default and both opt-in in Preferences:
+Three things are off by default and opt-in in Preferences:
 - **Reminders sync** shares your to-dos with a list in Apple's own Reminders app, on your terms (you choose the direction).
 - **iCloud sync** keeps your list in step across your own Macs via your private iCloud account — Apple's CloudKit, not a third-party server.
+- **Share Usage Data** sends anonymous product-analytics events (which features get used, never your to-do text) to help guide development.
 
-Neither sends anything anywhere else, and both stay off unless you switch them on.
+Nothing else sends anything anywhere, and all three stay off unless you switch them on.
 
 ## Feedback
 

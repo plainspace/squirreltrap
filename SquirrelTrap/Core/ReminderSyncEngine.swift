@@ -32,6 +32,34 @@ final class ReminderSyncEngine: ObservableObject {
         }
     }
 
+    /// Auto-creates (or reuses, if this ever runs twice -- e.g. a reinstall)
+    /// a private "Squirrel Trap" list, so turning sync on for the first time
+    /// never defaults onto an existing list the user already has, which
+    /// might be shared with other people without them realizing it. Sync
+    /// still starts from a real, deliberate choice if they'd rather use a
+    /// different list -- this only sets the zero-click default.
+    func dedicatedListOrCreate() async -> EKCalendar? {
+        guard await requestAccess() else { return nil }
+        let title = "Squirrel Trap"
+        if let existing = eventStore.calendars(for: .reminder).first(where: { $0.title == title }) {
+            return existing
+        }
+        guard let source = eventStore.defaultCalendarForNewReminders()?.source
+            ?? eventStore.sources.first(where: { $0.sourceType == .local }) else {
+            return nil
+        }
+        let calendar = EKCalendar(for: .reminder, eventStore: eventStore)
+        calendar.title = title
+        calendar.source = source
+        do {
+            try eventStore.saveCalendar(calendar, commit: true)
+            return calendar
+        } catch {
+            debugLog("Squirrel Trap DEBUG: [ReminderSyncEngine] dedicated list creation failed: \(error)\n")
+            return nil
+        }
+    }
+
     func sync() async {
         let direction = preferences.reminderSyncDirection
         guard direction != .off else { return }
