@@ -41,9 +41,15 @@ final class UpdateChecker: ObservableObject {
             let (data, _) = try await URLSession.shared.data(from: url)
             let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
             let latestVersion = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
+            // Defense in depth: html_url comes from a pinned HTTPS call to
+            // api.github.com, so this isn't a live exploit path today, but
+            // this link is the one moment the app hands the user a URL it
+            // expects them to trust and download from -- worth confirming
+            // it actually points at github.com before ever offering it.
             guard let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                   Self.isNewer(latestVersion, than: currentVersion),
-                  let releaseURL = URL(string: release.htmlURL) else {
+                  let releaseURL = URL(string: release.htmlURL),
+                  releaseURL.host == "github.com" else {
                 availableUpdate = nil
                 return
             }

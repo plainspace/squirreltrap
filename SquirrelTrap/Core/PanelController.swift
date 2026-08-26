@@ -99,6 +99,14 @@ final class PanelController: NSObject {
     // (via its own CGEventTap; a held Cmd key alone looks identical to us).
     var isSwitchGestureActive: (() -> Bool)?
 
+    // Permission/onboarding content shouldn't be dismissible by accident the
+    // way the ephemeral Cmd+Tab prompt is -- there's no recovery path back to
+    // it (the menu bar icon, Cmd+Tab, and Cmd+, all route through the very
+    // guards this content exists to satisfy), so a stray click elsewhere or a
+    // few idle seconds must never make it disappear. Checked in present()
+    // to skip installing the three dismiss mechanisms below for that content.
+    private var isShowingStickyContent = false
+
     // Fades the panel out if you never interact with it, so an accidental or
     // half-considered Cmd+Tab doesn't just leave it sitting on screen forever.
     // Duration is user-configurable (AppPreferences.inactivityTimeout).
@@ -182,6 +190,17 @@ final class PanelController: NSObject {
             showOnboardingPanel()
             return
         }
+        // Mirrors the onboarding guard above -- without this, the menu bar
+        // icon (the only entry point once the event tap can't fire) had no
+        // way to route back to PermissionRequestView if that panel was ever
+        // dismissed, since Cmd+Tab itself depends on the permission this
+        // guards. See showPermissionRequestPanel() for the sticky-content
+        // side of this fix.
+        guard PermissionManager.status() == .granted else {
+            showPermissionRequestPanel()
+            return
+        }
+        isShowingStickyContent = false
         // Drives CoachTip's triggerCount checks in PromptPanelView -- only
         // counts real prompt-panel shows, never Preferences/onboarding ones.
         preferences.totalPanelShows += 1
@@ -307,6 +326,18 @@ final class PanelController: NSObject {
     }
 
     func showPermissionRequestPanel() {
+        // See isShowingStickyContent's declaration -- there's no recovery
+        // path back to this view once it's dismissed, so it must not be
+        // dismissible by a stray click or a few idle seconds the way the
+        // normal ephemeral panel content is.
+        isShowingStickyContent = true
+        // A deliberate exception to this app never calling NSApp.activate
+        // (see PermissionManager.requestAccess's own comment on the same
+        // rule) -- as a .nonactivatingPanel that never takes focus on its
+        // own, this view could otherwise appear behind whatever's already
+        // frontmost on a brand-new install, with no menu-bar habit yet
+        // formed to bring it forward.
+        NSApp.activate(ignoringOtherApps: true)
         _ = obtainPanel()
         let controller = permissionHostingController ?? {
             let controller = NSHostingController(
@@ -327,6 +358,7 @@ final class PanelController: NSObject {
             showOnboardingPanel()
             return
         }
+        isShowingStickyContent = false
         _ = obtainPanel()
         let controller = preferencesHostingController ?? {
             let controller = NSHostingController(
@@ -356,6 +388,12 @@ final class PanelController: NSObject {
     /// from a UI trigger; showPromptPanel()/showPreferencesPanel() redirect
     /// here themselves whenever onboarding isn't complete yet.
     func showOnboardingPanel() {
+        // See isShowingStickyContent's declaration -- a brand-new user has
+        // even less context than an existing one for "why did this vanish
+        // and how do I get it back," so the same click-away/idle-fade/
+        // dismiss-key mechanisms that are fine for the ephemeral Cmd+Tab
+        // prompt must not apply here either.
+        isShowingStickyContent = true
         _ = obtainPanel()
         let controller = onboardingHostingController ?? {
             let controller = NSHostingController(
@@ -383,6 +421,9 @@ final class PanelController: NSObject {
     }
 
     func showReminderSyncPreferencesPanel() {
+        // Only sticky when reached as a detour from onboarding -- from normal
+        // Preferences it's just another ordinary navigable panel.
+        isShowingStickyContent = reminderSyncReturnsToOnboarding
         _ = obtainPanel()
         let controller = reminderSyncPreferencesHostingController ?? {
             let controller = NSHostingController(
@@ -813,9 +854,15 @@ final class PanelController: NSObject {
             }
         }
         panel.makeKeyAndOrderFront(nil)
-        installGlobalClickMonitor()
-        startActivityMonitoring()
-        installDismissKeyMonitor()
+        if isShowingStickyContent {
+            removeGlobalClickMonitor()
+            stopActivityMonitoring()
+            removeDismissKeyMonitor()
+        } else {
+            installGlobalClickMonitor()
+            startActivityMonitoring()
+            installDismissKeyMonitor()
+        }
         onVisibilityChanged?(true)
     }
 
