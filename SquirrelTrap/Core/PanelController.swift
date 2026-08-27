@@ -622,19 +622,25 @@ final class PanelController: NSObject {
         })
     }
 
-    /// Shared by the Snooze button on both the main panel and Preferences —
-    /// swaps in a "Snoozing…" message in place of whatever content is
-    /// currently showing, then fades the whole panel out slower than the
-    /// normal inactivity fade (0.3s) so it reads as a deliberate action
-    /// rather than the panel just idling away.
+    /// Shared by the Snooze button on both the main panel and Preferences,
+    /// and by the menu bar's Snooze item — swaps in a "Snoozing…" message in
+    /// place of whatever content is currently showing, then fades the whole
+    /// panel out slower than the normal inactivity fade (0.3s) so it reads
+    /// as a deliberate action rather than the panel just idling away.
     func snoozeAndFadeOut() {
-        guard let panel, panel.isVisible else {
-            debugLog("Squirrel Trap DEBUG: [snoozeAndFadeOut] skipped, panel.isVisible=\(panel?.isVisible ?? false)\n")
-            return
-        }
         let minutes = Int(preferences.snoozeDurationMinutes)
         preferences.snoozeUntil = Date().addingTimeInterval(preferences.snoozeDurationMinutes * 60)
         AnalyticsService.shared.track(.snoozed, properties: ["duration_minutes": minutes])
+
+        // The actual snooze above always applies regardless of the panel's
+        // state -- the menu bar's Snooze item calls this with the panel
+        // closed, and it must have the same real effect as the in-panel
+        // button, not silently no-op just because there's nothing to
+        // animate. Only the fade-out visual below is conditional.
+        guard let panel, panel.isVisible else {
+            debugLog("Squirrel Trap DEBUG: [snoozeAndFadeOut] applied, no panel visible to animate\n")
+            return
+        }
 
         let message = "Snoozing Squirrel Trap for \(minutes) Minute\(minutes == 1 ? "" : "s")"
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion

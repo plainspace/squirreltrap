@@ -298,6 +298,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showStatusMenu(for button: NSStatusBarButton) {
         let menu = NSMenu()
 
+        let addItem = NSMenuItem(title: "Add Item", action: #selector(addItemMenuItemClicked), keyEquivalent: "")
+        addItem.target = self
+        addItem.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+        menu.addItem(addItem)
+
+        let snoozeMinutes = Int(preferences.snoozeDurationMinutes)
+        let snoozeItem = NSMenuItem(title: "Snooze (\(snoozeMinutes)m)", action: #selector(snoozeMenuItemClicked), keyEquivalent: "")
+        snoozeItem.target = self
+        snoozeItem.image = NSImage(systemSymbolName: "moon.zzz.fill", accessibilityDescription: nil)
+        menu.addItem(snoozeItem)
+
+        menu.addItem(.separator())
+
         let activeReminders = intentStore.entriesWithActiveReminders
             .sorted { ($0.reminderDate ?? .distantFuture) < ($1.reminderDate ?? .distantFuture) }
         if !activeReminders.isEmpty {
@@ -332,6 +345,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openPreferencesFromStatusMenu() {
         panelController.showPreferencesPanel()
+    }
+
+    // Same effect as a plain left-click on the menu bar icon: cancels any
+    // active snooze (deliberately opening the panel yourself means you're
+    // done avoiding it) and shows the quick-add panel.
+    @objc private func addItemMenuItemClicked() {
+        preferences.snoozeUntil = nil
+        panelController.showPromptPanel()
+    }
+
+    // Same effect as clicking the in-panel Snooze button.
+    @objc private func snoozeMenuItemClicked() {
+        panelController.snoozeAndFadeOut()
     }
 
     @objc private func reminderMenuItemClicked(_ sender: NSMenuItem) {
