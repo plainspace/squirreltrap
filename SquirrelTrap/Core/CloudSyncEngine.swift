@@ -19,6 +19,13 @@ final class CloudSyncEngine: ObservableObject {
     /// successful one, rather than both silently reverting to the same
     /// resting Sync Now button with no feedback either way.
     @Published private(set) var lastSyncError: String?
+    /// A quick human-readable summary of what the most recent successful
+    /// pull actually brought in -- e.g. "2 added, 1 completed" -- so syncing
+    /// isn't a black box. Deliberately reports only the pull (incoming) side:
+    /// what you just pushed out is whatever you did yourself moments ago in
+    /// this same UI, so echoing it back adds noise, not information. Cleared
+    /// at the start of every sync() attempt.
+    @Published private(set) var lastSyncSummary: String?
 
     private let intentStore: IntentStore
     private let preferences: AppPreferences
@@ -108,6 +115,7 @@ final class CloudSyncEngine: ObservableObject {
         guard preferences.iCloudSyncEnabled else { return }
         isSyncing = true
         lastSyncError = nil
+        lastSyncSummary = nil
         defer { isSyncing = false }
 
         guard await ensureZoneExists() else {
@@ -194,8 +202,14 @@ final class CloudSyncEngine: ObservableObject {
         }
 
         let lastSync = preferences.lastCloudSyncAt ?? .distantPast
+        var addedCount = 0
+        var completedCount = 0
         for record in changedRecords {
-            applyPulledRecord(record, lastSync: lastSync)
+            switch applyPulledRecord(record, lastSync: lastSync) {
+            case .added: addedCount += 1
+            case .completedNewly: completedCount += 1
+            case .updatedOther, .skipped: break
+            }
         }
         for recordID in deletedIDs {
             if let id = UUID(uuidString: recordID.recordName) {
@@ -205,20 +219,44 @@ final class CloudSyncEngine: ObservableObject {
         if !changedRecords.isEmpty || !deletedIDs.isEmpty {
             intentStore.resortPendingBySortRank()
         }
+
+        var summaryParts: [String] = []
+        if addedCount > 0 { summaryParts.append("\(addedCount) added") }
+        if completedCount > 0 { summaryParts.append("\(completedCount) completed") }
+        if !deletedIDs.isEmpty { summaryParts.append("\(deletedIDs.count) removed") }
+        lastSyncSummary = summaryParts.isEmpty ? "No changes" : summaryParts.joined(separator: ", ")
+
         debugLog("Squirrel Trap DEBUG: [CloudSyncEngine] pulled \(changedRecords.count) changed, \(deletedIDs.count) deleted\n")
+    }
+
+    private enum PullOutcome {
+        /// A genuinely new entry, not previously known on this device.
+        case added
+        /// An existing entry whose completed flag flipped false -> true
+        /// because of this pull specifically -- the one other-worthy-of-a-
+        /// mention transition (vs. a bare edit, favorite toggle, reorder,
+        /// etc., which just fold into "updated" and aren't called out).
+        case completedNewly
+        case updatedOther
+        /// Local won the conflict (see the doc comment below) -- nothing
+        /// was actually applied, so it must not count toward the summary.
+        case skipped
     }
 
     /// Most-recent-wins, same rule as Reminders sync: if the local entry also
     /// changed since the last sync, whichever side changed later keeps its
     /// version — an entry that changed only remotely always applies.
-    private func applyPulledRecord(_ record: CKRecord, lastSync: Date) {
-        guard let id = UUID(uuidString: record.recordID.recordName) else { return }
+    @discardableResult
+    private func applyPulledRecord(_ record: CKRecord, lastSync: Date) -> PullOutcome {
+        guard let id = UUID(uuidString: record.recordID.recordName) else { return .skipped }
         let remoteModified = record.modificationDate ?? lastSync
+        let remoteCompleted = record["completed"] as? Bool ?? false
 
-        if let existing = intentStore.entries.first(where: { $0.id == id }) {
+        let existing = intentStore.entries.first(where: { $0.id == id })
+        if let existing {
             let localChanged = existing.lastModifiedAt > lastSync
             if localChanged, existing.lastModifiedAt >= remoteModified {
-                return
+                return .skipped
             }
         }
 
@@ -226,7 +264,7 @@ final class CloudSyncEngine: ObservableObject {
             id: id,
             text: record["text"] as? String ?? "",
             createdAt: record["createdAt"] as? Date ?? Date(),
-            completed: record["completed"] as? Bool ?? false,
+            completed: remoteCompleted,
             completedAt: record["completedAt"] as? Date,
             favorite: record["favorite"] as? Bool ?? false,
             reminderDate: record["reminderDate"] as? Date,
@@ -235,6 +273,9 @@ final class CloudSyncEngine: ObservableObject {
             colorTag: TodoColorTag(rawValue: record["colorTag"] as? String ?? "")
         )
         intentStore.applyCloudEntry(entry)
+
+        guard let existing else { return .added }
+        return (!existing.completed && remoteCompleted) ? .completedNewly : .updatedOther
     }
 
     /// Local changes flow out: anything modified since the last *successful*

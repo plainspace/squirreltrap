@@ -67,6 +67,13 @@ struct PreferencesSyncTab: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+            } else if let lastSyncSummary = cloudSyncEngine.lastSyncSummary {
+                GridRow {
+                    Text("")
+                    Text(lastSyncSummary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.panelTextSecondary)
+                }
             }
 
             onboardingDivider
