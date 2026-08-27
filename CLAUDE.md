@@ -58,3 +58,11 @@ When touching `IntentStore`, `CloudSyncEngine`, or `ReminderSyncEngine`,
 re-read this section and ask: *could this path ever turn "I'm not sure"
 into "delete it anyway"?* If so, it needs to fail toward keeping data,
 not discarding it.
+
+**Explicitly reviewed and confirmed (2026-08-26):** the genuine
+two-device edit-conflict case (same to-do edited on two Macs before they
+sync) was raised directly against this rule — should the losing edit be
+discarded (current) or should both sides be kept as separate entries so
+no edit is ever silently lost? Decision: keep the current
+most-recent-`lastModifiedAt`-wins behavior as-is. This is a deliberate,
+confirmed choice, not a gap — don't re-flag it in a future audit.
