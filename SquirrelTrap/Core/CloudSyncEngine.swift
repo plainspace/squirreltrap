@@ -149,12 +149,27 @@ final class CloudSyncEngine: ObservableObject {
         operation.recordZoneChangeTokensUpdatedBlock = { _, token, _ in
             if let token { newToken = token }
         }
-        operation.recordZoneFetchResultBlock = { _, result in
+        operation.recordZoneFetchResultBlock = { [weak self] _, result in
             switch result {
             case .success(let success):
                 newToken = success.serverChangeToken
             case .failure(let error):
                 debugLog("Squirrel Trap DEBUG: [CloudSyncEngine] zone fetch failed: \(error)\n")
+                // CloudKit invalidates a saved change token after enough
+                // dormancy (or a schema change) and there is no way to
+                // recover a delta fetch once that happens -- every future
+                // sync would otherwise fail this exact way forever, leaving
+                // this device permanently, silently stale: never learning
+                // about edits or deletions made on any other device. This
+                // never destroys anything locally, but a device that's
+                // stopped hearing about the rest of the world is exactly
+                // the kind of silent failure this audit is meant to catch.
+                // Clearing the token trades one heavier full re-fetch next
+                // sync for actually recovering.
+                if let ckError = error as? CKError, ckError.code == .changeTokenExpired {
+                    self?.preferences.cloudChangeToken = nil
+                    debugLog("Squirrel Trap DEBUG: [CloudSyncEngine] change token expired -- cleared for a full re-fetch next sync\n")
+                }
             }
         }
 

@@ -360,7 +360,25 @@ final class IntentStore: ObservableObject {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        entries = (try? decoder.decode([IntentEntry].self, from: data)) ?? []
+        if let decoded = try? decoder.decode([IntentEntry].self, from: data) {
+            entries = decoded
+        } else {
+            // The file exists but failed to parse -- corruption, a torn
+            // write, or two instances racing on it (see the single-instance
+            // guard in SquirrelTrapApp). The old behavior here (`?? []`)
+            // silently treated this as "zero to-dos," and the very next
+            // save() would have permanently overwritten the real file with
+            // that empty state -- turning a recoverable parse error into an
+            // irreversible full data loss. Preserve the original bytes
+            // untouched under a separate name instead: starting this
+            // session empty is disruptive, but the actual history is still
+            // sitting on disk waiting to be recovered, never destroyed.
+            let corruptURL = fileURL.deletingLastPathComponent()
+                .appendingPathComponent("entries-corrupted-\(Int(Date().timeIntervalSince1970)).json")
+            try? FileManager.default.copyItem(at: fileURL, to: corruptURL)
+            debugLog("Squirrel Trap DEBUG: [IntentStore] entries.json failed to decode -- preserved as \(corruptURL.lastPathComponent) instead of overwriting it with an empty list\n")
+            entries = []
+        }
 
         // One-time migration: files saved before sortRank existed decode it as
         // 0 for every entry (see IntentEntry's custom decoder) — detect that

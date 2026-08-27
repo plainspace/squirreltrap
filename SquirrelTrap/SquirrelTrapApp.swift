@@ -52,6 +52,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var snoozeExpiryTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Two instances both loading entries.json into memory and later
+        // calling IntentStore.save() independently is a silent last-writer-
+        // wins race -- whichever instance saves second overwrites anything
+        // the other one added or changed in between, with no error and no
+        // way to recover it. Observed directly (an orphaned debug launch
+        // coexisting with a fresh one); bail out before this instance's
+        // IntentStore could ever be asked to save anything. Checked first,
+        // before any other launch work, since intentStore.load() already
+        // ran during this AppDelegate's property initialization above --
+        // nothing has written to disk yet at this point either way, so
+        // quitting here is always safe regardless of which instance wins.
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        let otherInstances = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+        if !otherInstances.isEmpty {
+            debugLog("Squirrel Trap DEBUG: another instance is already running (pid \(otherInstances.map(\.processIdentifier))) -- quitting this one rather than risk a data-loss race on entries.json\n")
+            NSApp.terminate(nil)
+            return
+        }
+
         panelController.onQuit = {
             NSApp.terminate(nil)
         }
