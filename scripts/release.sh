@@ -38,6 +38,25 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Exporting via Xcode's Organizer into an iCloud-synced folder (as this
+# machine's export location is) lets the iCloud file-provider daemon attach
+# disallowed com.apple.FinderInfo / com.apple.fileprovider.fpfs xattrs to
+# nested bundle-type components (a widget .appex, SPM .framework/.bundle
+# resources) -- discovered the hard way when v1.8.0 shipped with this and
+# triggered "Apple could not verify that this app is free of malware" for
+# some users despite being genuinely notarized. Stripping xattrs doesn't
+# touch the code signature itself (it's a filesystem-metadata check, not
+# part of what's cryptographically signed), so no re-signing/re-notarizing
+# is needed -- but every future export gets this treatment unconditionally,
+# and the release is refused outright if strict verification still fails.
+xattr -cr "$EXPORTED_APP"
+if ! codesign --verify --deep --strict "$EXPORTED_APP"; then
+  echo "error: $EXPORTED_APP fails strict code-signature verification even after stripping extended attributes." >&2
+  echo "Do not release this build -- investigate before re-running." >&2
+  exit 1
+fi
+echo "Verified: strict code-signature check passed."
+
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_ZIP"
 ditto -c -k --keepParent "$EXPORTED_APP" "$DIST_ZIP"
