@@ -13,6 +13,12 @@ import Foundation
 final class CloudSyncEngine: ObservableObject {
     @Published private(set) var isSyncing = false
     @Published private(set) var accountStatusDescription = "Checking…"
+    /// Set whenever the most recent sync() attempt hit a real error (pull or
+    /// push), cleared at the start of every new attempt. Surfaced in
+    /// PreferencesSyncTab so a failed sync is visibly distinguishable from a
+    /// successful one, rather than both silently reverting to the same
+    /// resting Sync Now button with no feedback either way.
+    @Published private(set) var lastSyncError: String?
 
     private let intentStore: IntentStore
     private let preferences: AppPreferences
@@ -101,9 +107,13 @@ final class CloudSyncEngine: ObservableObject {
     func sync() async {
         guard preferences.iCloudSyncEnabled else { return }
         isSyncing = true
+        lastSyncError = nil
         defer { isSyncing = false }
 
-        guard await ensureZoneExists() else { return }
+        guard await ensureZoneExists() else {
+            lastSyncError = "Couldn't set up iCloud sync. Check your iCloud sign-in and try again."
+            return
+        }
         await ensureSubscriptionExists()
         await pull()
         await push()
@@ -113,6 +123,16 @@ final class CloudSyncEngine: ObservableObject {
         let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
         config.previousServerChangeToken = preferences.cloudChangeToken
         let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: [zoneID], configurationsByRecordZoneID: [zoneID: config])
+        // Root-caused 2026-08-26: macOS Low Power Mode throttles CloudKit's
+        // background data task indefinitely -- no error, no completion, ever,
+        // until Low Power Mode is turned off (confirmed: same operation
+        // completes in ~3s with it off). Without a bound, that leaves the
+        // Sync Now spinner running forever with no feedback at all. This
+        // timeout can't fix the throttling, but it guarantees a completion
+        // (which becomes a real, user-visible error via lastSyncError below)
+        // instead of an indistinguishable-from-frozen silence.
+        operation.configuration.timeoutIntervalForRequest = 45
+        operation.configuration.timeoutIntervalForResource = 60
 
         var changedRecords: [CKRecord] = []
         var deletedIDs: [CKRecord.ID] = []
@@ -138,14 +158,20 @@ final class CloudSyncEngine: ObservableObject {
             }
         }
 
+        var pullError: Error?
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             operation.fetchRecordZoneChangesResultBlock = { result in
                 if case .failure(let error) = result {
                     debugLog("Squirrel Trap DEBUG: [CloudSyncEngine] pull failed: \(error)\n")
+                    pullError = error
                 }
                 continuation.resume()
             }
             database.add(operation)
+        }
+
+        if let pullError {
+            lastSyncError = "iCloud sync couldn't check for changes: \(pullError.localizedDescription)"
         }
 
         if let newToken {
@@ -226,10 +252,12 @@ final class CloudSyncEngine: ObservableObject {
         let operation = CKModifyRecordsOperation(recordsToSave: toSave, recordIDsToDelete: toDelete)
         operation.savePolicy = .allKeys
 
+        var pushError: Error?
         let succeeded = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
             operation.modifyRecordsResultBlock = { result in
                 if case .failure(let error) = result {
                     debugLog("Squirrel Trap DEBUG: [CloudSyncEngine] push failed: \(error)\n")
+                    pushError = error
                 }
                 continuation.resume(returning: (try? result.get()) != nil)
             }
@@ -241,6 +269,8 @@ final class CloudSyncEngine: ObservableObject {
                 intentStore.clearPendingCloudDeletions(deletionIDs)
             }
             preferences.lastCloudSyncAt = Date()
+        } else if let pushError {
+            lastSyncError = "iCloud sync couldn't save your changes: \(pushError.localizedDescription)"
         }
         debugLog("Squirrel Trap DEBUG: [CloudSyncEngine] pushed \(toSave.count) saved, \(toDelete.count) deleted, succeeded=\(succeeded)\n")
     }

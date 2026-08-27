@@ -58,6 +58,17 @@ struct PreferencesSyncTab: View {
                 }
             }
 
+            if let lastSyncError = cloudSyncEngine.lastSyncError {
+                GridRow {
+                    Text("")
+                    Text(lastSyncError)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             onboardingDivider
 
             GridRow {
