@@ -74,6 +74,15 @@ final class AppPreferences: ObservableObject {
     /// OnboardingView and PanelController.showOnboardingPanel(). Gates every
     /// normal entry point (Cmd+Tab, menu bar click, Cmd+,) until it's done,
     /// so it can't be bypassed, only postponed.
+    /// Set once the user has dismissed the Input Monitoring explainer with
+    /// "Continue Without It". Without this the explainer greets them on every
+    /// single launch, which is intolerable when the permission cannot be
+    /// granted at all (see DEVELOPMENT.md): the app would open onto a screen
+    /// about something the user can do nothing about, forever.
+    @Published var hasDismissedPermissionExplainer: Bool {
+        didSet { UserDefaults.standard.set(hasDismissedPermissionExplainer, forKey: Keys.hasDismissedPermissionExplainer) }
+    }
+
     @Published var hasCompletedOnboarding: Bool {
         didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
     }
@@ -231,6 +240,7 @@ final class AppPreferences: ObservableObject {
         static let celebrationEnabled = "celebrationEnabled"
         static let showStreak = "showStreak"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let hasDismissedPermissionExplainer = "hasDismissedPermissionExplainer"
         static let totalPanelShows = "totalPanelShows"
         static let dismissedCoachTips = "dismissedCoachTips"
         static let coachTipRotationIndex = "coachTipRotationIndex"
@@ -292,6 +302,8 @@ final class AppPreferences: ObservableObject {
         // Mac has run Squirrel Trap before onboarding/coach tips existed.
         // Those installs should never be forced through either retroactively.
         let isExistingInstall = UserDefaults.standard.object(forKey: Keys.showMenuBarIcon) != nil
+
+        hasDismissedPermissionExplainer = UserDefaults.standard.bool(forKey: Keys.hasDismissedPermissionExplainer)
 
         if UserDefaults.standard.object(forKey: Keys.hasCompletedOnboarding) == nil {
             hasCompletedOnboarding = isExistingInstall

@@ -177,20 +177,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _ in self?.publishWidgetSnapshot() }
             .store(in: &cancellables)
 
-        let status = PermissionManager.status()
-        debugLog("Squirrel Trap DEBUG: launch status = \(status)\n")
+        #if DEBUG
+        // Debug builds only. The panel is normally reachable solely by a
+        // keystroke or a menu bar click, which makes it impossible to capture
+        // or measure from a script -- there is nothing to point a screenshot
+        // at until a human presses something. Launching with --show-panel
+        // opens it immediately so its layout can be inspected deterministically.
+        if CommandLine.arguments.contains("--show-panel") {
+            panelController.showPromptPanel()
+            // Return before the permission branch. Input Monitoring is granted
+            // per app path and is irrelevant to how the panel lays out, but a
+            // missing grant swaps the prompt panel for the permission
+            // explainer, which is the opposite of what this flag is for.
+            return
+        }
+        #endif
 
+        debugLog("Squirrel Trap DEBUG: launch status = \(PermissionManager.status())\n")
+
+        // Gate on IOHIDCheckAccess, not on whether the tap was created.
+        //
+        // CGEvent.tapCreate succeeds without Input Monitoring: it returns a
+        // valid, enabled tap that then never delivers a single callback. So
+        // "the tap attached" says nothing about whether this app can work, and
+        // gating on it skips the permission screen entirely. That screen is the
+        // only thing that ever calls IOHIDRequestAccess, and IOHIDRequestAccess
+        // is the only thing that can produce a system prompt or get the app
+        // listed in Input Monitoring at all -- macOS will not let a user add it
+        // by hand. Gating on the tap therefore guarantees the permission can
+        // never be obtained.
+        let status = PermissionManager.status()
         if status == .granted {
-            let started = monitor.start()
-            debugLog("Squirrel Trap DEBUG: monitor.start() = \(started)\n")
+            monitor.start()
             // A fresh install that somehow already has permission (e.g.
             // reinstalling with permission retained) still gets onboarding,
             // shown proactively rather than waiting for a first Cmd+Tab.
             if !preferences.hasCompletedOnboarding {
                 panelController.showOnboardingPanel()
             }
-        } else {
+        } else if !preferences.hasDismissedPermissionExplainer {
+            // Shown once, not on every launch. Polling still runs either way,
+            // so if the permission ever does arrive the tap starts on its own.
             panelController.showPermissionRequestPanel()
+            startPermissionPolling()
+        } else {
             startPermissionPolling()
         }
     }
@@ -200,13 +230,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                let status = PermissionManager.status()
-                debugLog("Squirrel Trap DEBUG: poll status = \(status)\n")
-                guard status == .granted else { return }
+                guard PermissionManager.status() == .granted else { return }
+                self.monitor.start()
                 self.permissionPollTimer?.invalidate()
                 self.permissionPollTimer = nil
-                let started = self.monitor.start()
-                debugLog("Squirrel Trap DEBUG: monitor.start() = \(started)\n")
                 if !self.preferences.hasCompletedOnboarding {
                     self.panelController.showOnboardingPanel()
                 } else {
@@ -260,22 +287,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Menu bar icon reflects one of three states: the app icon while the
-    /// panel is visible, a grayed-out default while snoozed, or the plain
-    /// default otherwise.
+    /// Menu bar icon reflects one of three states: accent-tinted while the
+    /// panel is visible, dimmed while snoozed, plain otherwise.
+    ///
+    /// All three are the *same* glyph, differing only in tint and alpha. It
+    /// used to swap between a 🐿️ emoji and the full app icon squashed to 18pt
+    /// — a detailed rounded-square app icon rendered at menu bar size is
+    /// unreadable, and swapping to a different picture to say "the panel is
+    /// open" makes the user re-identify the icon every time it changes.
+    ///
+    /// The glyph is the Lucide squirrel, shipped as a vector asset marked
+    /// template-rendering, so the plain and snoozed states are drawn by AppKit
+    /// in the menu bar's own colour. That's what makes it correct in a light
+    /// menu bar, a dark one, and while the menu is popped open and inverted.
+    /// The open-panel state is the one deliberate exception: it renders
+    /// non-template in the app's accent colour, so the menu bar agrees with the
+    /// panel it just opened.
     private func updateMenuBarAppearance() {
         guard let button = statusItem?.button else { return }
-        if isPanelVisible {
-            button.title = ""
-            let icon = NSApp.applicationIconImage?.copy() as? NSImage
-            icon?.size = NSSize(width: 18, height: 18)
-            button.image = icon
-            button.alphaValue = 1.0
-        } else {
+        button.title = ""
+
+        guard let icon = NSImage(named: "MenuBarSquirrel") else {
+            // The asset is compiled into the bundle, so this should be
+            // unreachable; falling back to the emoji beats a blank menu bar
+            // with no way to reach the app.
             button.image = nil
             button.title = "🐿️"
+            return
+        }
+        icon.size = NSSize(width: 18, height: 18)
+
+        if isPanelVisible {
+            icon.isTemplate = false
+            button.image = icon.tinted(with: NSColor(named: "AccentColor") ?? .controlAccentColor)
+            button.alphaValue = 1.0
+        } else {
+            icon.isTemplate = true
+            button.image = icon
             let isSnoozed = (preferences.snoozeUntil.map { $0 > Date() }) ?? false
-            button.alphaValue = isSnoozed ? 0.35 : 1.0
+            button.alphaValue = isSnoozed ? 0.4 : 1.0
         }
     }
 
@@ -398,5 +448,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
+    }
+}
+
+extension NSImage {
+    /// Returns a copy drawn entirely in `color`, preserving the original's
+    /// alpha. Used for the open-panel menu bar state, which is the one place
+    /// the icon is deliberately not a template image and so has to be tinted
+    /// by hand rather than by AppKit.
+    func tinted(with color: NSColor) -> NSImage {
+        let tinted = NSImage(size: size, flipped: false) { rect in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            self.draw(in: rect)
+            context.setBlendMode(.sourceIn)
+            context.setFillColor(color.cgColor)
+            context.fill(rect)
+            return true
+        }
+        // Explicitly not a template: the whole point is that this copy carries
+        // its own colour rather than being recoloured by the menu bar.
+        tinted.isTemplate = false
+        return tinted
     }
 }

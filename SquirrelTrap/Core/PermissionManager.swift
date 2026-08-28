@@ -24,10 +24,12 @@ enum PermissionManager {
     /// Activating first matters: this app never calls NSApp.activate elsewhere (so the
     /// floating panel never steals focus), but without being the active app at least
     /// momentarily here, the system consent prompt can fail to attribute to us at all.
-    static func requestAccess() {
+    @discardableResult
+    static func requestAccess() -> Bool {
         NSApp.activate(ignoringOtherApps: true)
         let result = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
         debugLog("Squirrel Trap DEBUG: IOHIDRequestAccess returned \(result), status now \(status())\n")
+        return result
     }
 
     static func openInputMonitoringSettings() {
