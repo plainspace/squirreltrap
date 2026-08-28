@@ -82,12 +82,21 @@ struct PreferencesAppearanceTab: View {
                 Button {
                     isShowingDefaultColorPicker = true
                 } label: {
-                    Image(systemName: preferences.defaultColorTag != nil ? "paintpalette.fill" : "paintpalette")
-                        .font(.system(size: 13))
-                        // Tertiary at rest (no default color set yet), matching
-                        // GhostIconButtonStyle's own resting/restingTint split
-                        // rather than a dimmed accent.
-                        .foregroundStyle(preferences.defaultColorTag?.color ?? Color.panelTertiary)
+                    // A filled dot in the tag's own colour, matching how the
+                    // per-row colour control is drawn in IntentRowView. The
+                    // control's job is to show which colour is assigned, and a
+                    // swatch shows that where a tinted palette glyph does not.
+                    Circle()
+                        .fill(preferences.defaultColorTag?.color ?? Color.clear)
+                        .overlay(
+                            Circle().strokeBorder(
+                                preferences.defaultColorTag == nil ? Color.panelCheckboxRim : Color.clear,
+                                lineWidth: 1.5
+                            )
+                        )
+                        .frame(width: 14, height: 14)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
@@ -137,7 +146,7 @@ struct PreferencesAppearanceTab: View {
                 permissionStatus
             }
         }
-        .font(.system(size: 12))
+        .font(Theme.secondary)
         .onAppear { permissionGranted = PermissionManager.status() == .granted }
     }
 
@@ -162,33 +171,46 @@ struct PreferencesAppearanceTab: View {
         }
     }
 
-    /// A row of small tappable swatches, one per PanelTheme -- each shows its
-    /// base fill with an accent-colored ring only around the currently
-    /// selected one, so picking a theme is a single click with no popover
-    /// (unlike per-item Default Color above, which needs a popover since it
-    /// includes 16 options plus "none").
+    /// A row of small tappable swatches, one per PanelTheme.
+    ///
+    /// Each swatch shows the theme's ACCENT, not its base. Upstream showed the
+    /// base fill because the base was the card's own colour, but this fork
+    /// deliberately does not adopt it: the card is the system window background
+    /// so the panel reads correctly in both appearances, and the theme drives
+    /// only the accent. Showing a base colour here would advertise something
+    /// that changes nothing on screen, which is worse than showing no swatch at
+    /// all: the user picks a theme, nothing they can see changes, and the
+    /// feature looks broken.
+    ///
+    /// Selection is a ring around the swatch rather than a fill change, so the
+    /// colour being chosen is never distorted by the act of choosing it.
     private var themeSwatches: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 7) {
             ForEach(PanelTheme.allCases, id: \.self) { theme in
+                let isSelected = preferences.panelTheme == theme
                 Button {
                     preferences.panelTheme = theme
                 } label: {
                     Circle()
-                        .fill(theme.base)
-                        .frame(width: 18, height: 18)
+                        .fill(theme.accent)
+                        .frame(width: 16, height: 16)
                         .overlay(
-                            Circle()
-                                .strokeBorder(Color.panelTextPrimary.opacity(0.3), lineWidth: 0.5)
+                            // A hairline so a swatch close to the card's own
+                            // colour still has an edge in both appearances.
+                            Circle().strokeBorder(Color.panelSeparator, lineWidth: 0.5)
                         )
                         .overlay(
                             Circle()
-                                .strokeBorder(theme.accent, lineWidth: preferences.panelTheme == theme ? 2 : 0)
-                                .padding(-2)
+                                .strokeBorder(theme.accent, lineWidth: isSelected ? 1.5 : 0)
+                                .padding(-3)
                         )
+                        .frame(width: 24, height: 24)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .help(theme.displayName)
                 .accessibilityLabel(theme.displayName)
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
     }

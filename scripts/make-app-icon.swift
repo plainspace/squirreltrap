@@ -116,13 +116,39 @@ func superellipse(in rect: CGRect, exponent: CGFloat = 5, samples: Int = 720) ->
     return path
 }
 
-func drawIcon(size: CGFloat) -> NSImage {
-    let image = NSImage(size: NSSize(width: size, height: size))
-    image.lockFocus()
-    guard let context = NSGraphicsContext.current?.cgContext else {
-        image.unlockFocus()
-        return image
-    }
+/// Draws into an explicitly-sized bitmap, NOT via NSImage.lockFocus.
+///
+/// lockFocus draws into a backing store at the SCREEN's scale factor, so on a
+/// Retina display every file came out exactly twice its intended pixel size.
+/// actool then rejected the whole set ("icon_512.png is 1024x1024 but should be
+/// 512x512") and emitted no icon at all, which let a stale AppIcon.icns from an
+/// earlier build keep showing through. The PNGs looked perfectly correct when
+/// opened; only their dimensions were wrong, so nothing about the artwork gave
+/// it away.
+///
+/// Allocating the NSBitmapImageRep with explicit pixelsWide/pixelsHigh and a
+/// matching point size pins one point to one pixel regardless of the display.
+func drawIcon(pixels: Int) -> NSBitmapImageRep? {
+    let size = CGFloat(pixels)
+    guard let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixels,
+        pixelsHigh: pixels,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else { return nil }
+    rep.size = NSSize(width: size, height: size)
+
+    NSGraphicsContext.saveGraphicsState()
+    defer { NSGraphicsContext.restoreGraphicsState() }
+    guard let graphics = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+    NSGraphicsContext.current = graphics
+    let context = graphics.cgContext
 
     context.setShouldAntialias(true)
     context.interpolationQuality = .high
@@ -233,18 +259,16 @@ func drawIcon(size: CGFloat) -> NSImage {
         context.restoreGState()
     }
 
-    image.unlockFocus()
-    return image
+    return rep
 }
 
-func write(_ image: NSImage, pixels: Int, to name: String) {
-    guard let tiff = image.tiffRepresentation,
-          let rep = NSBitmapImageRep(data: tiff)
-    else { return }
-    rep.size = NSSize(width: pixels, height: pixels)
+/// Writes the rep and reports its ACTUAL pixel dimensions, not the ones that
+/// were asked for. The previous version printed the requested size, which is
+/// how a whole set of double-sized files passed as correct.
+func write(_ rep: NSBitmapImageRep, to name: String) {
     guard let png = rep.representation(using: .png, properties: [:]) else { return }
     try? png.write(to: outputDirectory.appendingPathComponent(name))
-    print("wrote \(name) at \(pixels)px")
+    print("wrote \(name) at \(rep.pixelsWide)x\(rep.pixelsHigh)")
 }
 
 // (points, scale) pairs matching the Contents.json already in the asset catalog.
@@ -255,7 +279,16 @@ let variants: [(Int, Int)] = [
 
 for (points, scale) in variants {
     let pixels = points * scale
-    let image = drawIcon(size: CGFloat(pixels))
+    guard let rep = drawIcon(pixels: pixels) else {
+        print("FAILED to draw icon at \(pixels)px")
+        continue
+    }
+    // Refuse to ship a file actool will reject. This exact mismatch went
+    // unnoticed for a whole session because the artwork looked right.
+    guard rep.pixelsWide == pixels, rep.pixelsHigh == pixels else {
+        print("FAILED: drew \(rep.pixelsWide)x\(rep.pixelsHigh), expected \(pixels)x\(pixels)")
+        continue
+    }
     let name = scale == 1 ? "icon_\(points).png" : "icon_\(points)@2x.png"
-    write(image, pixels: pixels, to: name)
+    write(rep, to: name)
 }
