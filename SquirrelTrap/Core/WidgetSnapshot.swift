@@ -18,7 +18,7 @@ struct WidgetSnapshot: Codable {
     /// the main app target and the widget extension target in Xcode's
     /// Signing & Capabilities tab -- that's what actually provisions it,
     /// not this string alone.
-    static let appGroupIdentifier = "group.com.jtoeman.squirreltrap"
+    static let appGroupIdentifier = "group.com.plainspace.squirreltrap"
 
     private static let fileName = "widget_snapshot.json"
 

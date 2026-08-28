@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	Debug/local-dev counterpart to SquirrelTrapWidgetExtension.entitlements.
+	The App Group is dropped because a free Personal Team cannot provision one;
+	the widget therefore builds and signs, but reads no shared data until the
+	Release entitlements are restored under a paid team.
+	-->
+</dict>
+</plist>

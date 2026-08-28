@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	Debug/local-dev entitlements for building on a free Apple Personal Team.
+
+	A Personal Team cannot provision CloudKit containers, App Groups, push
+	(aps-environment), or time-sensitive notifications, so every one of those
+	keys is omitted here rather than being requested and failing to sign. The
+	full set still lives in SquirrelTrap-Release.entitlements — switch Debug
+	back to that file once a paid Developer Program team is signed in.
+
+	What this costs at runtime, and nothing else:
+	  - iCloud sync across Macs (CloudSyncEngine gets no usable container)
+	  - the desktop widget's shared data (no App Group container)
+	  - "time sensitive" delivery for reminder alarms (they still fire, just
+	    without breaking through Focus)
+
+	The core loop — Cmd+Tab prompt, the to-do list, Reminders sync, local
+	notifications — needs no entitlement at all and is unaffected.
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+</dict>
+</plist>
