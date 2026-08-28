@@ -16,7 +16,19 @@ final class UpdateChecker: ObservableObject {
     @Published private(set) var isChecking = false
 
     private let preferences: AppPreferences
-    private let repo = "jtoeman/squirreltrap"
+    /// One declaration of where this app lives, shared by the update check and
+    /// by the version link in the panel footer, so the two cannot drift onto
+    /// different repos.
+    static let repo = "plainspace/squirreltrap"
+
+    static var repoURL: URL? { URL(string: "https://github.com/\(repo)") }
+
+    /// The app's marketing version, e.g. "1.7.0".
+    static var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "..."
+    }
+
+    private let repo = UpdateChecker.repo
     private let checkInterval: TimeInterval = 24 * 60 * 60
 
     init(preferences: AppPreferences) {

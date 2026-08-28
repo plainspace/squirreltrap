@@ -8,6 +8,7 @@ struct PendingRowView: View {
     let entry: IntentEntry
     let themeAccent: Color
     var isHighlighted: Bool = false
+    var isSelected: Bool = false
     let onToggleCompleted: () -> Void
     let onToggleFavorite: () -> Void
     let onSetReminder: (TimeInterval) -> Void
@@ -16,20 +17,23 @@ struct PendingRowView: View {
     let onDrop: (UUID) -> Void
     var onDragHandleHoverChanged: (Bool) -> Void = { _ in }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
     @State private var isDropTargeted = false
     // Completion-animation state -- see startCompletionAnimation(). Purely
-    // visual, not persisted.
-    @State private var rowScale: CGFloat = 1.0
-    @State private var rowOpacity: Double = 1.0
-    @State private var showPuff = false
-    @State private var puffOpacity: Double = 0.0
+    // visual, not persisted. `isChecking` fills the checkbox, `isCompleting`
+    // collapses the row; they fire in that order, a beat apart.
+    @State private var isChecking = false
+    @State private var isCompleting = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             IntentRowView(
                 entry: entry,
                 themeAccent: themeAccent,
                 isHighlighted: isHighlighted || isDropTargeted,
+                isSelected: isSelected,
+                forceChecked: isChecking,
                 onToggleCompleted: startCompletionAnimation,
                 onToggleFavorite: onToggleFavorite,
                 onSetReminder: onSetReminder,
@@ -38,8 +42,16 @@ struct PendingRowView: View {
             )
 
             Image(systemName: "line.3.horizontal")
-                .font(.system(size: 11))
-                .foregroundStyle(Color.panelTextSecondary.opacity(0.5))
+                .font(.system(size: 10))
+                .foregroundStyle(Color.panelTertiary)
+                .frame(width: 16, height: Theme.rowHeight)
+                .contentShape(Rectangle())
+                // Only visible while the pointer is on the row. A grip that is
+                // always drawn turns a list into a table of controls; one that
+                // appears where the hand already is costs nothing at rest.
+                // Deliberately not shown for keyboard selection: dragging is
+                // the one thing on this row a keyboard cannot do.
+                .opacity(isHovering ? 1 : 0)
                 // The panel is otherwise movable by clicking/dragging its
                 // background (isMovableByWindowBackground) -- a plain Image
                 // isn't an AppKit "control", so without this a click-drag on
@@ -51,30 +63,39 @@ struct PendingRowView: View {
                     // Explicit width matters: without it, a preview dragged from
                     // this small handle rendered as just the system drag-operation
                     // badge with no visible content at all.
-                    HStack(spacing: 10) {
-                        Image(systemName: "circle")
-                            .font(.system(size: 17))
-                            .foregroundStyle(themeAccent.opacity(0.5))
+                    HStack(spacing: Theme.checkboxGap) {
+                        Checkbox(isChecked: false, tint: entry.colorTag?.color ?? themeAccent)
                         Text(entry.text)
-                            .font(.system(size: 13))
+                            .font(Theme.body)
                             .foregroundStyle(Color.panelTextPrimary)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 10)
-                    .frame(width: 380, alignment: .leading)
-                    .glassCard(tint: themeAccent)
+                    .padding(.horizontal, 8)
+                    .frame(width: 380, height: Theme.rowHeight, alignment: .leading)
+                    .panelSurface(cornerRadius: Theme.rowRadius)
                 }
         }
-        .scaleEffect(rowScale)
-        .opacity(rowOpacity)
-        .overlay {
-            if showPuff {
-                Text("💨")
-                    .font(.system(size: 16))
-                    .opacity(puffOpacity)
-            }
+        // Collapsing the row's own height is what makes the items below slide
+        // up to meet it, rather than the row vanishing and leaving a gap that
+        // snaps shut a frame later.
+        .frame(height: isCompleting ? 0 : nil)
+        .opacity(isCompleting ? 0 : 1)
+        .clipped()
+        .onHover { isHovering = $0 }
+        // Both flags describe a completion that is currently playing, so they
+        // must not outlive it. An entry that is checked off and later unchecked
+        // comes back into this list, and SwiftUI may hand it the same view
+        // state it had on the way out: forceChecked still true, drawing a
+        // checked box on an entry whose `completed` is false, or isCompleting
+        // still true, collapsing the row to zero height so it never reappears.
+        .onAppear {
+            isChecking = false
+            isCompleting = false
+        }
+        .onChange(of: entry.completed) { _, _ in
+            isChecking = false
+            isCompleting = false
         }
         .dropDestination(for: String.self) { items, _ in
             guard let draggedIDString = items.first, let draggedID = UUID(uuidString: draggedIDString) else { return false }
@@ -85,34 +106,40 @@ struct PendingRowView: View {
         }
     }
 
-    /// Plays the shrink/fade-out + puff-cloud animation in place, then calls
-    /// the real onToggleCompleted() only once the row is fully invisible --
-    /// this entry then moves from the pending list to the completed one, but
-    /// since there's nothing left on screen to jump, that structural move is
-    /// never actually visible. Timed as a fraction of celebrationDuration
-    /// (Core/CelebrationTiming.swift), the same knob the main panel's icon
-    /// pulse uses, so both halves of the celebration stay in the same
-    /// ballpark even though this row's animation runs first and completes
-    /// before that pulse begins.
+    /// Checking something off is the one moment the app exists for, so it gets
+    /// a beat rather than an instant swap: the checkbox fills (that animation
+    /// lives on `Checkbox` itself), the row holds long enough to actually read
+    /// as *checked*, and only then collapses out of the pending list. The real
+    /// `onToggleCompleted()` fires last, so the structural move from the
+    /// pending list to the completed one happens with nothing left on screen
+    /// to jump.
+    ///
+    /// This replaces a shrink-to-1%-scale plus a 💨 emoji puff. Scaling a row
+    /// to a point drags the eye toward the vanishing centre, and the emoji
+    /// rendered at whatever weight the system font had — neither survives
+    /// being looked at twice.
     private func startCompletionAnimation() {
-        let outDuration = celebrationDuration * 0.6
-        let puffDuration = celebrationDuration * 0.4
+        // The real toggle is deferred by roughly 0.6s so the checkbox fill can
+        // be seen. A second click inside that window used to schedule a second
+        // toggle, and two toggles land back where they started: the row moved
+        // out and back, and the checkbox appeared not to have changed at all.
+        guard !isChecking else { return }
 
-        withAnimation(.easeIn(duration: outDuration)) {
-            rowScale = 0.01
-            rowOpacity = 0
+        guard !reduceMotion else {
+            onToggleCompleted()
+            return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + outDuration) {
-            showPuff = true
-            withAnimation(.easeOut(duration: puffDuration * 0.4)) {
-                puffOpacity = 1
+
+        let hold = celebrationDuration * 0.45
+        let collapse = celebrationDuration * 0.35
+
+        isChecking = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + hold) {
+            withAnimation(.easeInOut(duration: collapse)) {
+                isCompleting = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + puffDuration * 0.4) {
-                withAnimation(.easeIn(duration: puffDuration * 0.6)) {
-                    puffOpacity = 0
-                }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + puffDuration) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + collapse) {
                 onToggleCompleted()
             }
         }

@@ -16,6 +16,50 @@ final class DismissiblePanel: NSPanel {
     }
 }
 
+/// The card's close button.
+///
+/// Exists as a subclass purely to get a hover state: `NSButton` has no
+/// equivalent of SwiftUI's `.onHover`, so it needs its own tracking area. The
+/// previous button was a bare `xmark.circle.fill` with no hover feedback at
+/// all, sitting half-outside the card's rounded corner because a 24pt control
+/// cannot fit in a 20pt shadow margin. This one lives inside the card and
+/// carries a fill that only appears under the pointer.
+final class PanelCloseButton: NSButton {
+    private var trackingArea: NSTrackingArea?
+
+    private var isHovering = false {
+        didSet {
+            guard isHovering != oldValue else { return }
+            contentTintColor = isHovering ? .labelColor : .tertiaryLabelColor
+            layer?.backgroundColor = isHovering
+                ? NSColor.labelColor.withAlphaComponent(0.10).cgColor
+                : NSColor.clear.cgColor
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovering = true }
+
+    override func mouseExited(with event: NSEvent) { isHovering = false }
+
+    /// The panel is `isMovableByWindowBackground`, and AppKit decides whether a
+    /// drag moves the window by asking the view under the cursor. Without this,
+    /// a click that drifts by a pixel on the way up became a window drag
+    /// instead of a close.
+    override var mouseDownCanMoveWindow: Bool { false }
+}
+
 @MainActor
 final class PanelController: NSObject {
     private let intentStore: IntentStore
@@ -31,7 +75,16 @@ final class PanelController: NSObject {
     // below" cue instead of clipping cleanly at a full row boundary); the window
     // itself is padded out by cardMargin on every side so the close button can
     // sit outside the card's own corner without being clipped at the window edge.
-    private let cardSize = NSSize(width: 520, height: 460)
+    /// Shared by the blur, the opaque fallback and the content container, all
+    /// three of which are stacked on the same rect — they have to round
+    /// identically or the odd one out shows as a sliver at each corner.
+    static let cardCornerRadius: CGFloat = 12
+
+    /// Matches `Theme.controlHeight` so the close button is the same physical
+    /// target as every other icon button on the surface.
+    static let closeButtonSize: CGFloat = 26
+
+    private let cardSize = NSSize(width: PromptPanelView.cardSize.width, height: PromptPanelView.cardSize.height)
     private let cardMargin: CGFloat = 20
     private var windowSize: NSSize {
         NSSize(width: cardSize.width + cardMargin * 2, height: cardSize.height + cardMargin * 2)
@@ -190,16 +243,23 @@ final class PanelController: NSObject {
             showOnboardingPanel()
             return
         }
-        // Mirrors the onboarding guard above -- without this, the menu bar
-        // icon (the only entry point once the event tap can't fire) had no
-        // way to route back to PermissionRequestView if that panel was ever
-        // dismissed, since Cmd+Tab itself depends on the permission this
-        // guards. See showPermissionRequestPanel() for the sticky-content
-        // side of this fix.
-        guard PermissionManager.status() == .granted else {
-            showPermissionRequestPanel()
-            return
-        }
+        // Deliberately NO permission guard here.
+        //
+        // Upstream routes this back to PermissionRequestView whenever Input
+        // Monitoring is missing, so the menu bar icon can always reach that
+        // screen. That is right when the permission is obtainable and the
+        // screen is a step on the way in. It is wrong when the permission
+        // cannot be obtained at all: a build signed with a free Personal Team
+        // is refused Input Monitoring outright on macOS 26 (see
+        // DEVELOPMENT.md), which turned the explainer into a permanent wall in
+        // front of an app that otherwise works perfectly well.
+        //
+        // Input Monitoring gates exactly one thing: the Cmd+Tab trigger.
+        // Capturing intents, the list, reminders, sync and Preferences need
+        // none of it, and the menu bar icon opens the same panel. So a missing
+        // permission costs the user a keyboard shortcut, not the application.
+        // The explainer is still shown once at launch and is still reachable
+        // from Preferences; it just no longer blocks the way in.
         isShowingStickyContent = false
         // Drives CoachTip's triggerCount checks in PromptPanelView -- only
         // counts real prompt-panel shows, never Preferences/onboarding ones.
@@ -341,7 +401,13 @@ final class PanelController: NSObject {
         _ = obtainPanel()
         let controller = permissionHostingController ?? {
             let controller = NSHostingController(
-                rootView: PermissionRequestView(onDismiss: { [weak self] in self?.hidePanel() })
+                rootView: PermissionRequestView(onDismiss: { [weak self] in
+                    // Dismissing is an answer, not a postponement. Recording it
+                    // is what stops the explainer greeting the user on every
+                    // launch for a permission they may not be able to grant.
+                    self?.preferences.hasDismissedPermissionExplainer = true
+                    self?.hidePanel()
+                })
             )
             permissionHostingController = controller
             return controller
@@ -493,6 +559,14 @@ final class PanelController: NSObject {
     /// handler can't see it. A global monitor is the only way to catch it.
     private func installGlobalClickMonitor() {
         removeGlobalClickMonitor()
+        #if DEBUG
+        // In --show-panel mode the panel exists to be inspected, so it must not
+        // vanish the moment anything else on the machine is clicked. This is
+        // the last of the three things that made the panel impossible to
+        // screenshot from a script: the permission screen replacing it, the
+        // inactivity timeout closing it, and this dismissing it.
+        if CommandLine.arguments.contains("--show-panel") { return }
+        #endif
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self, let panel = self.panel, panel.isVisible else { return }
             if !panel.frame.contains(NSEvent.mouseLocation) {
@@ -597,6 +671,13 @@ final class PanelController: NSObject {
     /// Resets the countdown to the full (user-configurable) timeout.
     private func registerActivity() {
         dismissTimer?.invalidate()
+        #if DEBUG
+        // --show-panel exists so the panel can be inspected and screenshotted
+        // without a human holding it open. The 7-second inactivity timeout
+        // defeats that: the panel is gone before a capture can be taken. In
+        // measurement mode it simply never schedules the dismiss.
+        if CommandLine.arguments.contains("--show-panel") { return }
+        #endif
         dismissTimer = Timer.scheduledTimer(withTimeInterval: preferences.inactivityTimeout, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.fadeOutAndHide()
@@ -692,10 +773,13 @@ final class PanelController: NSObject {
         newPanel.level = .floating
         newPanel.isOpaque = false
         newPanel.backgroundColor = .clear
-        // .hudWindow material's live blur-through needs a vibrant-dark context to
-        // render at all — this is also why the native switcher itself always looks
-        // dark, regardless of your system light/dark setting.
-        newPanel.appearance = NSAppearance(named: .vibrantDark)
+        // Deliberately left nil so the panel inherits the user's light/dark
+        // setting. It used to be pinned to .vibrantDark, because the .hudWindow
+        // material it used only blurs in a vibrant-dark context — but that made
+        // the whole app dark-only on a light desktop, and forced every colour in
+        // it to be defined as white-at-some-opacity. The material below is
+        // .popover instead, which blurs correctly in both appearances.
+        newPanel.appearance = nil
         newPanel.hasShadow = true
         newPanel.hidesOnDeactivate = false
         // Off by default on every NSWindow — without this, .mouseMoved never
@@ -719,8 +803,12 @@ final class PanelController: NSObject {
             x: cardMargin, y: cardMargin, width: cardSize.width, height: cardSize.height
         ))
         opaqueFallback.wantsLayer = true
-        opaqueFallback.layer?.backgroundColor = NSColor(preferences.panelTheme.base).cgColor
-        opaqueFallback.layer?.cornerRadius = 14
+        // .windowBackgroundColor rather than a theme base colour: the card is
+        // meant to read as a system surface in whichever appearance the user is
+        // in, and turning translucency off should not also mean turning dark
+        // mode on. The selected theme drives the accent, not the ground.
+        opaqueFallback.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        opaqueFallback.layer?.cornerRadius = Self.cardCornerRadius
         opaqueFallback.layer?.masksToBounds = true
         baseView.addSubview(opaqueFallback)
         opaqueFallbackView = opaqueFallback
@@ -728,18 +816,23 @@ final class PanelController: NSObject {
         let effect = NSVisualEffectView(frame: NSRect(
             x: cardMargin, y: cardMargin, width: cardSize.width, height: cardSize.height
         ))
-        effect.material = .hudWindow
+        effect.material = .popover
         effect.blendingMode = .behindWindow
         effect.state = .active
         effect.wantsLayer = true
-        effect.layer?.cornerRadius = 14
+        effect.layer?.cornerRadius = Self.cardCornerRadius
         effect.layer?.masksToBounds = true
         baseView.addSubview(effect)
         effectView = effect
 
+        // Was a 13%-opacity blue wash over the entire card, which is what made
+        // everything drawn on top of it fight for contrast against a tinted
+        // ground. It is now a near-neutral scrim whose only job is to lift text
+        // legibility over a busy desktop, since the panel floats above whatever
+        // you were just looking at.
         let tint = NSView(frame: effect.bounds)
         tint.wantsLayer = true
-        tint.layer?.backgroundColor = NSColor(preferences.panelTheme.accent).withAlphaComponent(0.13).cgColor
+        tint.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.5).cgColor
         tint.autoresizingMask = [.width, .height]
         effect.addSubview(tint)
         colorTintOverlay = tint
@@ -752,8 +845,13 @@ final class PanelController: NSObject {
         ))
         content.wantsLayer = true
         content.layer?.backgroundColor = .clear
-        content.layer?.cornerRadius = 14
+        content.layer?.cornerRadius = Self.cardCornerRadius
         content.layer?.masksToBounds = true
+        // A hairline on the card's own edge. Without it the blurred card melts
+        // into a light desktop at the top-left corner, where there's nothing
+        // behind it to darken the blur.
+        content.layer?.borderWidth = 1
+        content.layer?.borderColor = NSColor.separatorColor.cgColor
         baseView.addSubview(content)
         contentContainer = content
 
@@ -764,8 +862,8 @@ final class PanelController: NSObject {
         // centers it both ways regardless of how long the message text is.
         let snoozeLabel = NSTextField(labelWithString: "")
         snoozeLabel.alignment = .center
-        snoozeLabel.font = .systemFont(ofSize: 22, weight: .semibold)
-        snoozeLabel.textColor = .white
+        snoozeLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+        snoozeLabel.textColor = .labelColor
         snoozeLabel.backgroundColor = .clear
         snoozeLabel.isBezeled = false
         snoozeLabel.isEditable = false
@@ -781,20 +879,34 @@ final class PanelController: NSObject {
         ])
         snoozeMessageLabel = snoozeLabel
 
-        let closeImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close")?
-            .withSymbolConfiguration(.init(pointSize: 22, weight: .regular))
-        let closeBtn = NSButton(image: closeImage ?? NSImage(), target: self, action: #selector(closeButtonClicked))
+        // A bare 11pt xmark, not a filled circle. Grey rather than accent-blue
+        // too: closing is the least interesting thing you can do here, and an
+        // accent-coloured control in the corner read as the panel's primary
+        // action. The circle now belongs to the hover fill, which is the only
+        // moment the control needs a shape of its own.
+        let closeImage = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close")?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
+        let closeBtn = PanelCloseButton(image: closeImage ?? NSImage(), target: self, action: #selector(closeButtonClicked))
         closeBtn.isBordered = false
-        closeBtn.imageScaling = .scaleProportionallyUpOrDown
-        closeBtn.contentTintColor = (NSColor(named: "AccentColor") ?? .controlAccentColor).withAlphaComponent(0.75)
+        closeBtn.imageScaling = .scaleProportionallyDown
+        closeBtn.contentTintColor = .tertiaryLabelColor
         closeBtn.setAccessibilityLabel("Close")
-        let closeButtonSize: CGFloat = 24
+        closeBtn.toolTip = "Close"
+
+        // 26pt, fully inside the card, inset from its corner. The old button
+        // was 24pt centred *on* the corner point, which left 10 of its 24
+        // points hanging over the transparent shadow margin: it looked severed,
+        // and the part of it that sat outside the card was over nothing.
+        let closeButtonSize = Self.closeButtonSize
+        let closeInset: CGFloat = 8
         closeBtn.frame = NSRect(
-            x: cardMargin + cardSize.width - closeButtonSize / 2 - 2,
-            y: windowSize.height - cardMargin - closeButtonSize / 2 - 2,
+            x: cardMargin + cardSize.width - closeInset - closeButtonSize,
+            y: cardMargin + cardSize.height - closeInset - closeButtonSize,
             width: closeButtonSize,
             height: closeButtonSize
         )
+        closeBtn.wantsLayer = true
+        closeBtn.layer?.cornerRadius = closeButtonSize / 2
         baseView.addSubview(closeBtn)
         closeButton = closeBtn
 
@@ -909,15 +1021,28 @@ final class PanelController: NSObject {
         }
     }
 
-    /// Centers on whichever display currently has the mouse cursor, since that's
-    /// the best proxy for "which screen the user is looking at" mid keyboard-switch.
+    /// Inset from the screen edge the panel's card sits at. The window itself is
+    /// larger than the card by `cardMargin` on every side (that margin is the
+    /// shadow gutter), so it gets subtracted back out to make this a true
+    /// card-to-screen-edge distance rather than a window-to-edge one.
+    private let screenEdgeInset: CGFloat = 24
+
+    /// Anchors to the bottom-left of whichever display currently has the mouse
+    /// cursor — the cursor being the best proxy for "which screen the user is
+    /// looking at" mid keyboard-switch.
+    ///
+    /// Bottom-*left* specifically: the bottom-right corner is where macOS puts
+    /// its own transient surfaces (Notes' floating new-note window, notification
+    /// banners), so the left corner is the one that stays free. Cornering it also
+    /// keeps the panel off the middle of the screen, where it covered whatever
+    /// the switch was in service of.
     private func positionOnActiveScreen(_ panel: NSPanel) {
         let mouseLocation = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
         let screenFrame = screen?.visibleFrame ?? .zero
         let origin = NSPoint(
-            x: screenFrame.midX - windowSize.width / 2,
-            y: screenFrame.midY - windowSize.height / 2 + 60
+            x: screenFrame.minX + screenEdgeInset - cardMargin,
+            y: screenFrame.minY + screenEdgeInset - cardMargin
         )
         panel.setFrame(NSRect(origin: origin, size: windowSize), display: false)
     }

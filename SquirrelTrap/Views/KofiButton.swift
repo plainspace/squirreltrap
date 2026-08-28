@@ -1,10 +1,19 @@
 import AppKit
 import SwiftUI
 
-/// Native equivalent of the Ko-fi web widget (which is JS meant for a browser
-/// page) — same brand color, opens the same Ko-fi page directly.
+/// Opens the Ko-fi page directly, rather than embedding Ko-fi's own widget
+/// (which is browser JS).
+///
+/// Ghost: no fill, no outline, secondary text colour, brightening only on
+/// hover. It used to be a solid Ko-fi-blue pill, which made asking for money
+/// the highest-contrast element in a panel whose entire job is a text field and
+/// a list. A donation link should be findable by someone looking for it and
+/// invisible to everyone else.
 struct KofiButton: View {
     var onOpened: () -> Void = {}
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
 
     var body: some View {
         Button {
@@ -13,19 +22,20 @@ struct KofiButton: View {
             }
             onOpened()
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "cup.and.saucer.fill")
-                Text("Support me on Ko-fi")
-            }
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Color(red: 0x72 / 255, green: 0xA4 / 255, blue: 0xF2 / 255),
-                in: RoundedRectangle(cornerRadius: 8)
-            )
+            // Word only. `cup.and.saucer` at this size rendered as an
+            // indistinct stack of ellipses rather than a cup, and a glyph
+            // nobody can identify is worse than no glyph.
+            Text("Ko-fi")
+                .font(Theme.secondary)
+                .foregroundStyle(isHovering ? Color.panelTextPrimary : Color.panelTertiary)
+                .padding(.horizontal, 4)
+                .frame(height: Theme.controlHeight)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
+        .help("Support Squirrel Trap on Ko-fi")
+        .accessibilityLabel("Support Squirrel Trap on Ko-fi")
     }
 }

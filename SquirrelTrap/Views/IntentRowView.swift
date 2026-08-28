@@ -1,9 +1,26 @@
 import SwiftUI
 
+/// One to-do. Flat rather than carded: the row's boundaries come from the
+/// hairline beneath it and the hover fill, not from a border drawn around
+/// every item. Its four secondary controls (alarm, colour, favourite, delete)
+/// stay hidden until the pointer is on the row, so a list of eight to-dos is
+/// eight pieces of text rather than eight pieces of text and thirty-two icons.
+/// The controls still exist for keyboard and VoiceOver users at all times —
+/// only their *opacity* is driven by hover, never their presence, so the row's
+/// width never shifts and nothing is unreachable without a mouse.
 struct IntentRowView: View {
     let entry: IntentEntry
     let themeAccent: Color
     var isHighlighted: Bool = false
+    /// The keyboard-selected row. Distinct from `isHighlighted`, which marks
+    /// the row a reminder just fired for: that is the app pointing at
+    /// something, this is the user's own cursor.
+    var isSelected: Bool = false
+    /// Draws the checkbox as checked before the store says it is. PendingRowView
+    /// sets this the moment you click, so the fill animation plays during the
+    /// beat before the entry actually moves to the completed list — otherwise
+    /// the box would stay empty right up until the row disappeared.
+    var forceChecked: Bool = false
     let onToggleCompleted: () -> Void
     let onToggleFavorite: () -> Void
     var onSetReminder: ((TimeInterval) -> Void)?
@@ -11,6 +28,7 @@ struct IntentRowView: View {
     var onSetColor: ((TodoColorTag?) -> Void)?
     var onDelete: (() -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
     @State private var isShowingReminderPicker = false
     @State private var isShowingColorPicker = false
 
@@ -26,64 +44,119 @@ struct IntentRowView: View {
         ("60 min", 60 * 60)
     ]
 
+    /// A colour-tagged item checks off in its own tag colour; everything else
+    /// uses the panel theme's accent, so upstream's eight selectable themes
+    /// drive this fork's one-accent rule rather than being replaced by it.
+    private var accent: Color { entry.colorTag?.color ?? themeAccent }
+
+    private var selectionFill: Color {
+        if isSelected { return themeAccent.opacity(0.16) }
+        if isHovering { return .panelSurfaceRaised }
+        return .clear
+    }
+
+    /// Secondary controls fade in on hover, but anything currently *doing*
+    /// something — a set alarm, an assigned colour, a favourited star — stays
+    /// visible at rest. Otherwise hovering away would appear to unset it.
+    private var showsSecondaryControls: Bool {
+        isHovering || isSelected || isShowingReminderPicker || isShowingColorPicker
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            Button(action: onToggleCompleted) {
-                Image(systemName: entry.completed ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 17))
-                    .foregroundStyle(entry.completed ? themeAccent : themeAccent.opacity(0.5))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(entry.completed ? "Mark not done" : "Mark done")
-            .accessibilityValue(entry.completed ? "Completed" : "Not completed")
+        HStack(spacing: Theme.checkboxGap) {
+            // A tap gesture rather than a Button, deliberately.
+            //
+            // A focused SwiftUI Button on macOS activates on Return, so one
+            // Return fired twice: once through the text field's onSubmit, which
+            // acts on the selected row, and once by activating whichever
+            // checkbox held key focus. Two toggles cancel out, so checking
+            // anything off appeared to do nothing.
+            //
+            // `.focusable(false)` fixes that and breaks mouse clicks, which is
+            // a worse bug than the one it fixes. A plain tap target takes the
+            // click and is never activated by a keystroke, so both paths work
+            // and neither fires twice. The accessibility traits below put back
+            // what dropping Button gives up.
+            Checkbox(isChecked: entry.completed || forceChecked, tint: accent)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onToggleCompleted)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction(named: entry.completed ? "Mark not done" : "Mark done", onToggleCompleted)
+                .accessibilityLabel(entry.completed ? "Mark not done" : "Mark done")
+                .accessibilityValue(entry.completed ? "Completed" : "Not completed")
 
             Text(entry.text)
-                .font(.system(size: 13))
-                .strikethrough(entry.completed)
-                .foregroundStyle(Color.panelTextPrimary)
-                .opacity(entry.completed ? 0.5 : 1.0)
+                .font(Theme.body)
+                .strikethrough(entry.completed, color: .panelTextSecondary)
+                .foregroundStyle(entry.completed ? Color.panelTextSecondary : Color.panelTextPrimary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
 
-            // Reminders and color tagging only make sense for tasks you
+            // Reminders and colour tagging only make sense for tasks you
             // haven't finished yet -- same gate as the clock icon.
             if !entry.completed, let onSetReminder, let onCancelReminder {
                 reminderControl(onSetReminder: onSetReminder, onCancelReminder: onCancelReminder)
+                    .opacity(entry.reminderDate != nil || showsSecondaryControls ? 1 : 0)
             }
 
             if !entry.completed, let onSetColor {
                 colorControl(onSetColor: onSetColor)
+                    .opacity(entry.colorTag != nil || showsSecondaryControls ? 1 : 0)
             }
 
             Button(action: onToggleFavorite) {
                 Image(systemName: entry.favorite ? "star.fill" : "star")
-                    .font(.system(size: 13))
-                    .foregroundStyle(entry.favorite ? Color("SunnyYellow") : themeAccent.opacity(0.5))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.ghostIcon(
+                size: 12,
+                restingTint: entry.favorite ? .panelStar : nil,
+                hoverTint: .panelStar
+            ))
+            .opacity(entry.favorite || showsSecondaryControls ? 1 : 0)
             .help(entry.favorite ? "Remove from favorites" : "Add to favorites")
             .accessibilityLabel(entry.favorite ? "Remove from favorites" : "Add to favorites")
 
             if let onDelete {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
-                        .font(.system(size: 12))
-                        .foregroundStyle(themeAccent)
                 }
-                .buttonStyle(.plain)
+                // Red on hover only. A trash icon that is red at rest turns
+                // every completed row into a warning; red is the confirmation
+                // that you are about to destroy this specific one.
+                .buttonStyle(.ghostIcon(size: 11.5, hoverTint: .panelDestructive))
+                .opacity(showsSecondaryControls ? 1 : 0)
                 .help("Delete")
                 .accessibilityLabel("Delete")
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .glassCard(tint: entry.colorTag?.color ?? themeAccent)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(themeAccent, lineWidth: isHighlighted ? 2 : 0)
+        .padding(.horizontal, 8)
+        .frame(minHeight: Theme.rowHeight)
+        // Selection and hover must not look the same. They were both
+        // panelSurfaceRaised, so a row under the pointer was indistinguishable
+        // from the keyboard-selected row, and a list read as having several
+        // rows "already highlighted" before a key was ever pressed. Selection
+        // is now a faint accent wash; hover stays neutral.
+        .background(
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .fill(selectionFill)
         )
+        .overlay(
+            // Keyboard selection gets a hairline, not the 2pt ring a fired
+            // reminder gets. Both are "look here", but one is a persistent
+            // cursor the user is driving and the other is a one-off alarm; if
+            // they shout equally, the alarm stops meaning anything.
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .strokeBorder(
+                    themeAccent,
+                    lineWidth: isHighlighted ? 2 : (isSelected ? 1 : 0)
+                )
+        )
+        .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: showsSecondaryControls)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isSelected)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHighlighted)
     }
 
@@ -103,11 +176,11 @@ struct IntentRowView: View {
             }
         } label: {
             Image(systemName: entry.reminderDate != nil ? "alarm.fill" : "alarm")
-                .font(.system(size: 13))
-                .foregroundStyle(entry.reminderDate != nil ? themeAccent : themeAccent.opacity(0.5))
         }
-        .buttonStyle(.plain)
-        .frame(width: 20, height: 20)
+        .buttonStyle(.ghostIcon(
+            size: 12,
+            restingTint: entry.reminderDate != nil ? themeAccent : nil
+        ))
         .help(entry.reminderDate != nil ? "Cancel reminder" : "Remind me later")
         .accessibilityLabel(entry.reminderDate != nil ? "Cancel reminder" : "Remind me later")
         .popover(isPresented: $isShowingReminderPicker) {
@@ -118,6 +191,7 @@ struct IntentRowView: View {
                         isShowingReminderPicker = false
                     }
                     .buttonStyle(.plain)
+                    .font(Theme.body)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                 }
@@ -136,12 +210,23 @@ struct IntentRowView: View {
         Button {
             isShowingColorPicker = true
         } label: {
-            Image(systemName: entry.colorTag != nil ? "paintpalette.fill" : "paintpalette")
-                .font(.system(size: 13))
-                .foregroundStyle(entry.colorTag?.color ?? themeAccent.opacity(0.5))
+            // A filled dot in the tag's own colour, rather than a paint-palette
+            // glyph: the control's job is to show which colour is assigned, and
+            // a swatch shows that at 12pt where an icon tinted that colour does
+            // not.
+            Circle()
+                .fill(entry.colorTag?.color ?? Color.clear)
+                .overlay(
+                    Circle().strokeBorder(
+                        entry.colorTag == nil ? Color.panelCheckboxRim : Color.clear,
+                        lineWidth: 1.5
+                    )
+                )
+                .frame(width: 11, height: 11)
         }
         .buttonStyle(.plain)
-        .frame(width: 20, height: 20)
+        .frame(width: Theme.controlHeight, height: Theme.controlHeight)
+        .contentShape(Rectangle())
         .help(entry.colorTag != nil ? "Change or remove color" : "Assign a color")
         .accessibilityLabel(entry.colorTag != nil ? "Change or remove color" : "Assign a color")
         .popover(isPresented: $isShowingColorPicker) {
