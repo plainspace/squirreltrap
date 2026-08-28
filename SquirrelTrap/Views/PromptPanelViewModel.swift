@@ -4,7 +4,11 @@ import Foundation
 final class PromptPanelViewModel: ObservableObject {
     @Published var draftText: String = ""
     @Published var focusToken = UUID()
-    @Published var isShowingFavorites = false
+    @Published var isShowingFavorites = false {
+        // The two modes show different lists, so a row selected in one has no
+        // counterpart in the other.
+        didSet { if isShowingFavorites != oldValue { selectedEntryID = nil } }
+    }
     // Not persisted — only meaningful for the current panel session, set when a
     // reminder fires so the relevant row can call itself out visually.
     @Published var highlightedEntryID: UUID?
@@ -12,6 +16,14 @@ final class PromptPanelViewModel: ObservableObject {
     // animation, then clears itself. Not persisted; a transient UI moment,
     // not state.
     @Published var isCelebrating = false
+    /// The keyboard-selected row, or nil when focus belongs to the text field.
+    ///
+    /// The panel opens on a keystroke and is dismissed by one, but until now
+    /// everything between those two keystrokes needed a mouse: there was no way
+    /// to check anything off without pointing at it. Arrow keys move this;
+    /// Return acts on it. nil is a real state, not "nothing selected yet" --
+    /// it means the caret is back in the field and typing appends to the draft.
+    @Published var selectedEntryID: UUID?
 
     let intentStore: IntentStore
     private let reminderScheduler: ReminderScheduler
@@ -21,6 +33,75 @@ final class PromptPanelViewModel: ObservableObject {
         self.intentStore = intentStore
         self.reminderScheduler = reminderScheduler
         self.preferences = preferences
+    }
+
+    // MARK: Keyboard navigation
+
+    /// The rows the arrow keys walk, in the order they appear on screen:
+    /// pending first, then completed, matching PromptPanelView's own two
+    /// sections. Favourites mode walks its own list instead.
+    private var navigableEntries: [IntentEntry] {
+        if isShowingFavorites { return intentStore.favoriteEntries }
+        let visible = intentStore.visibleEntries
+        return visible.filter { !$0.completed } + visible.filter { $0.completed }
+    }
+
+    /// Down from the text field selects the first row; down from the last row
+    /// stays put rather than wrapping. Wrapping in a list this short means
+    /// holding the key sends you back to the top without you noticing.
+    func selectNext() {
+        let entries = navigableEntries
+        guard !entries.isEmpty else { return }
+        guard let current = selectedEntryID,
+              let index = entries.firstIndex(where: { $0.id == current })
+        else {
+            selectedEntryID = entries.first?.id
+            return
+        }
+        guard index + 1 < entries.count else { return }
+        selectedEntryID = entries[index + 1].id
+    }
+
+    /// Up from the first row returns focus to the text field rather than
+    /// stopping dead, so the field is always one key away from the top of the
+    /// list.
+    func selectPrevious() {
+        let entries = navigableEntries
+        guard let current = selectedEntryID,
+              let index = entries.firstIndex(where: { $0.id == current })
+        else { return }
+        if index == 0 {
+            clearSelection()
+        } else {
+            selectedEntryID = entries[index - 1].id
+        }
+    }
+
+    func clearSelection() {
+        selectedEntryID = nil
+        focusToken = UUID()
+    }
+
+    /// Return on a selected row toggles it. Selection then moves to whatever
+    /// took its place at the same index, so checking off three things in a row
+    /// is Return-Return-Return rather than Return-Down-Return-Down.
+    func activateSelection() {
+        guard let selected = selectedEntryID else { return }
+        if isShowingFavorites {
+            guard let entry = intentStore.favoriteEntries.first(where: { $0.id == selected }) else { return }
+            repeatFavorite(entry)
+            clearSelection()
+            return
+        }
+        let entries = navigableEntries
+        let index = entries.firstIndex { $0.id == selected }
+        toggleCompleted(id: selected)
+        guard let index else { return }
+        let remaining = navigableEntries.filter { !$0.completed }
+        selectedEntryID = remaining.indices.contains(index)
+            ? remaining[index].id
+            : remaining.last?.id
+        if selectedEntryID == nil { clearSelection() }
     }
 
     func setReminder(for entryID: UUID, duration: TimeInterval) {
@@ -68,6 +149,10 @@ final class PromptPanelViewModel: ObservableObject {
         focusToken = UUID()
         isShowingFavorites = false
         highlightedEntryID = entryID
+        // Every show starts with the caret in the field. Carrying a row
+        // selection over from the last time the panel was open would mean the
+        // first thing typed goes nowhere.
+        selectedEntryID = nil
     }
 
     func submit(dismiss: () -> Void) {
