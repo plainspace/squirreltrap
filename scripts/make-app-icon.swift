@@ -24,15 +24,23 @@ let outputDirectory = URL(fileURLWithPath: #filePath)
 let inset: CGFloat = 0.10
 let cornerFraction: CGFloat = 0.225
 
-/// The same Lucide squirrel the menu bar uses, so the app has one mark rather
-/// than two. It lives here as a pre-rendered black-on-white raster because the
-/// artwork is four stroked paths full of elliptical arcs: hand-writing an SVG
-/// arc parser to place it would be far more surface area than an icon warrants.
+/// The same Lucide squirrel the menu bar uses, at the SAME stroke weight.
+///
+/// That last part matters and was wrong for a while: the menu bar glyph is
+/// stroke-width 2 on a 24 grid, and this was rendered at 3.0, so the two marks
+/// read as different weights of the same animal rather than as one mark at two
+/// sizes. Any change here has to be matched in
+/// `Assets.xcassets/MenuBarSquirrel.imageset/squirrel.svg` or they drift apart
+/// again.
+///
+/// It lives here as a pre-rendered black-on-white raster because the artwork is
+/// four stroked paths full of elliptical arcs, and hand-writing an SVG arc
+/// parser to place it would be far more surface area than an icon warrants.
 /// Regenerate with:
 ///
-///   qlmanage -t -s 1024 -o <dir> scripts/icon-source/squirrel-1024.svg
+///   qlmanage -t -s 1024 -o <dir> <a 1024x1024 copy of squirrel.svg>
 ///
-/// Its luminance is used as a mask below, so the white background disappears
+/// Its luminance becomes an alpha mask below, so the white ground disappears
 /// and only the strokes are painted.
 let glyphSource = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -128,6 +136,35 @@ func superellipse(in rect: CGRect, exponent: CGFloat = 5, samples: Int = 720) ->
 ///
 /// Allocating the NSBitmapImageRep with explicit pixelsWide/pixelsHigh and a
 /// matching point size pins one point to one pixel regardless of the display.
+/// The glyph, composited to white-on-transparent ONCE at source resolution.
+///
+/// Built once rather than per icon size: it is the same artwork every time, and
+/// rebuilding it ten times only multiplies the chances of doing it differently.
+let whiteGlyph: CGImage? = {
+    guard let image = NSImage(contentsOf: glyphSource),
+          let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+          let mask = invertedMask(from: source)
+    else { return nil }
+
+    let width = source.width
+    let height = source.height
+    guard let context = CGContext(
+        data: nil,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return nil }
+
+    let full = CGRect(x: 0, y: 0, width: width, height: height)
+    context.clip(to: full, mask: mask)
+    context.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
+    context.fill(full)
+    return context.makeImage()
+}()
+
 func drawIcon(pixels: Int) -> NSBitmapImageRep? {
     let size = CGFloat(pixels)
     guard let rep = NSBitmapImageRep(
@@ -236,26 +273,25 @@ func drawIcon(pixels: Int) -> NSBitmapImageRep? {
     context.strokePath()
     context.restoreGState()
 
-    // The source render is black strokes on white. Inverting its luminance
-    // turns it into an alpha mask, so clipping to that mask and filling paints
-    // only the strokes and drops the background entirely.
-    if let glyph = NSImage(contentsOf: glyphSource),
-       let cgGlyph = glyph.cgImage(forProposedRect: nil, context: nil, hints: nil),
-       let mask = invertedMask(from: cgGlyph) {
-        // 0.54 of the tile, not 0.62. A mark that crowds its own edges reads as
-        // cheap at large sizes; the margin is what makes it look placed rather
-        // than stretched to fit.
-        let side = tile.width * 0.54
-        let glyphRect = CGRect(
-            x: tile.midX - side / 2,
-            y: tile.midY - side / 2,
-            width: side,
-            height: side
-        )
+    // 0.60 of the tile. Enough margin that the mark reads as placed rather than
+    // stretched to fit, while still carrying most of the tile.
+    let side = tile.width * 0.60
+    let glyphRect = CGRect(
+        x: tile.midX - side / 2,
+        y: tile.midY - side / 2,
+        width: side,
+        height: side
+    )
+    if let white = whiteGlyph {
+        // DRAWN, not clipped-to-mask. CGContext.clip(to:mask:) resamples the
+        // mask without smooth filtering, so scaling a 1024px mask down to a
+        // 16pt tile produced visibly soft, chewed edges. Compositing the white
+        // glyph once at source resolution and then drawing that image goes
+        // through the context's interpolation, which is what actually
+        // downsamples cleanly.
         context.saveGState()
-        context.clip(to: glyphRect, mask: mask)
-        context.setFillColor(NSColor.white.cgColor)
-        context.fill(glyphRect)
+        context.interpolationQuality = .high
+        context.draw(white, in: glyphRect)
         context.restoreGState()
     }
 

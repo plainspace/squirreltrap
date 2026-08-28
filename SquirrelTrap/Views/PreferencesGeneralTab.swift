@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct PreferencesGeneralTab: View {
@@ -17,6 +18,68 @@ struct PreferencesGeneralTab: View {
 
     private var hasActiveConfirmation: Bool {
         showingClearCompletedConfirm || showingClearAllConfirm
+    }
+
+    /// The excluded-apps control: the apps currently ignored, plus a picker to
+    /// add one.
+    ///
+    /// Apps are chosen through the standard open panel rather than typed as
+    /// bundle identifiers. Nobody knows their own apps by bundle ID, and a
+    /// typo produces a rule that silently never matches, which is the worst
+    /// possible failure for a setting whose entire job is to NOT do something.
+    private var excludedApps: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if preferences.excludedBundleIDs.isEmpty {
+                Text("None")
+                    .foregroundStyle(Color.panelTertiary)
+            } else {
+                ForEach(preferences.excludedBundleIDs.sorted(), id: \.self) { bundleID in
+                    HStack(spacing: 6) {
+                        Text(Self.displayName(for: bundleID))
+                            .foregroundStyle(Color.panelTextPrimary)
+                            .lineLimit(1)
+                            // The bundle ID stays reachable on hover, since two
+                            // installed copies of an app share a display name.
+                            .help(bundleID)
+                        Button {
+                            preferences.excludedBundleIDs.remove(bundleID)
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.ghostIcon(size: 10, hoverTint: .panelDestructive))
+                        .accessibilityLabel("Stop ignoring \(Self.displayName(for: bundleID))")
+                    }
+                }
+            }
+
+            Button("Add App…") { addExcludedApp() }
+                .controlSize(.small)
+        }
+    }
+
+    /// Resolves a bundle ID back to a readable name, falling back to the ID
+    /// itself when the app is not installed any more. An exclusion for an app
+    /// you have since deleted is harmless, so it is shown rather than dropped.
+    private static func displayName(for bundleID: String) -> String {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            return bundleID
+        }
+        return FileManager.default.displayName(atPath: url.path)
+    }
+
+    private func addExcludedApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.prompt = "Ignore"
+        panel.message = "Squirrel Trap will not prompt when you switch away from these apps."
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls {
+            guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier else { continue }
+            preferences.excludedBundleIDs.insert(id)
+        }
     }
 
     /// Hairline row separators, only between rows shown during onboarding --
@@ -160,6 +223,16 @@ struct PreferencesGeneralTab: View {
                         }
                         Button("Cancel", role: .cancel) {}
                     }
+                }
+
+                GridRow {
+                    HStack(spacing: 4) {
+                        Text("Ignore apps")
+                            .foregroundStyle(Color.panelTextSecondary)
+                            .lineLimit(1)
+                        HelpTip("Squirrel Trap will not prompt when you switch away from these apps. Useful for tools you tab in and out of constantly, where the prompt is noise rather than a catch.")
+                    }
+                    excludedApps
                 }
 
                 GridRow {

@@ -85,6 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 debugLog("Squirrel Trap DEBUG: [onSwitchGestureDetected] snoozed, suppressing show\n")
                 return
             }
+            // Excluded apps never trigger the prompt. Matched against the app
+            // being switched AWAY from, which is still frontmost while the
+            // Cmd+Tab gesture is being held: the premise is that the moment
+            // before a switch is when you get sidetracked, but tabbing out of a
+            // tool to a reference and back is the work, not a distraction, and
+            // being asked twenty times an hour inside one workflow trains you
+            // to dismiss the panel without reading it.
+            if let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+               self.preferences.excludedBundleIDs.contains(frontmost) {
+                debugLog("Squirrel Trap DEBUG: [onSwitchGestureDetected] \(frontmost) excluded, suppressing show\n")
+                return
+            }
             self.panelController.showPromptPanel()
         }
         panelController.isSwitchGestureActive = { [weak monitor] in

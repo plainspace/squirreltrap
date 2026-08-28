@@ -31,6 +31,23 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(inactivityTimeout, forKey: Keys.inactivityTimeout) }
     }
 
+    /// Bundle identifiers of apps that must never trigger the prompt.
+    ///
+    /// Matched against the app you are switching AWAY from, not the one you are
+    /// switching to. The premise of this app is that the moment before a switch
+    /// is when you get sidetracked, but some switches are the work: tabbing out
+    /// of a design tool to a reference and back is not a distraction, and being
+    /// asked "what are you about to do?" twenty times an hour inside a single
+    /// workflow trains you to dismiss the panel without reading it, which
+    /// costs more than it saves.
+    ///
+    /// Stored as an array in UserDefaults since Set is not a plist type.
+    @Published var excludedBundleIDs: Set<String> {
+        didSet {
+            UserDefaults.standard.set(Array(excludedBundleIDs).sorted(), forKey: Keys.excludedBundleIDs)
+        }
+    }
+
     /// An explicit in-app override, separate from the system-wide Reduce
     /// Transparency setting (which the panel already honors automatically via
     /// its NSVisualEffectView material). This lets someone turn off the blur
@@ -241,6 +258,7 @@ final class AppPreferences: ObservableObject {
         static let showStreak = "showStreak"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hasDismissedPermissionExplainer = "hasDismissedPermissionExplainer"
+        static let excludedBundleIDs = "excludedBundleIDs"
         static let totalPanelShows = "totalPanelShows"
         static let dismissedCoachTips = "dismissedCoachTips"
         static let coachTipRotationIndex = "coachTipRotationIndex"
@@ -304,6 +322,7 @@ final class AppPreferences: ObservableObject {
         let isExistingInstall = UserDefaults.standard.object(forKey: Keys.showMenuBarIcon) != nil
 
         hasDismissedPermissionExplainer = UserDefaults.standard.bool(forKey: Keys.hasDismissedPermissionExplainer)
+        excludedBundleIDs = Set(UserDefaults.standard.stringArray(forKey: Keys.excludedBundleIDs) ?? [])
 
         if UserDefaults.standard.object(forKey: Keys.hasCompletedOnboarding) == nil {
             hasCompletedOnboarding = isExistingInstall
