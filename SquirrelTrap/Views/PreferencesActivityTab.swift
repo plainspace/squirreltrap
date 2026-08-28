@@ -21,8 +21,10 @@ struct PreferencesActivityTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Completed per day, last 7 days")
-                .font(.system(size: 12))
+                .font(Theme.sectionHeader)
                 .foregroundStyle(Color.panelTextSecondary)
+                .textCase(.uppercase)
+                .kerning(0.5)
 
             // The x-axis uses the actual Date (not a pre-formatted day-name
             // string) so Swift Charts orders bars chronologically -- a
@@ -37,7 +39,7 @@ struct PreferencesActivityTab: View {
                 .annotation(position: .top) {
                     if day.count > 0 {
                         Text("\(day.count)")
-                            .font(.system(size: 10))
+                            .font(Theme.secondary)
                             .foregroundStyle(Color.panelTextSecondary)
                     }
                 }
@@ -46,7 +48,7 @@ struct PreferencesActivityTab: View {
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { _ in
                     AxisValueLabel(format: .dateTime.weekday(.abbreviated))
-                        .font(.system(size: 10))
+                        .font(Theme.secondary)
                         .foregroundStyle(Color.panelTextSecondary)
                 }
             }
@@ -99,7 +101,7 @@ struct PreferencesActivityTab: View {
                 .help("Brings back every coach tip you've dismissed, so the rotation starts over")
                 if showResetConfirmation {
                     Label("Reset", systemImage: "checkmark.circle")
-                        .font(.system(size: 11))
+                        .font(Theme.secondary)
                         .foregroundStyle(Color.panelTextSecondary)
                 }
             }

@@ -12,10 +12,10 @@ struct AnalyticsConsentPrompt: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Help improve Squirrel Trap?")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Theme.title)
                 .foregroundStyle(Color.panelTextPrimary)
             Text("Sharing anonymous usage data -- which features get used, not your to-do text -- helps future updates focus on what actually helps. Change this anytime in Preferences → Appearance.")
-                .font(.system(size: 12))
+                .font(Theme.body)
                 .foregroundStyle(Color.panelTextSecondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: 240, alignment: .leading)
@@ -24,14 +24,17 @@ struct AnalyticsConsentPrompt: View {
                 Button("Not Now") { onDecide(false) }
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.panelTextSecondary)
-                    .font(.system(size: 12))
+                    .font(Theme.body)
 
                 Spacer()
 
+                // The accent lands on the affirmative, and only there: this is
+                // the one place in the app asking the user to opt in to
+                // something, so declining must not be the visually louder half.
                 Button("Enable") { onDecide(true) }
                     .buttonStyle(.plain)
                     .foregroundStyle(themeAccent)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.bodyMedium)
             }
         }
         .padding(14)

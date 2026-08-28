@@ -72,19 +72,19 @@ struct OnboardingView: View {
 
             footer
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Theme.gutter)
         .padding(.bottom, 12)
-        .padding(.top, 10)
-        .frame(width: 520, height: 460, alignment: .top)
+        .padding(.top, 12)
+        .frame(width: PromptPanelView.cardSize.width, height: PromptPanelView.cardSize.height, alignment: .top)
     }
 
     private var header: some View {
         VStack(spacing: 2) {
             Text("Welcome to Squirrel Trap")
-                .font(.system(size: 13, weight: .bold))
+                .font(Theme.title)
                 .foregroundStyle(Color.panelTextPrimary)
             Text("A few quick preferences before you get started")
-                .font(.system(size: 11, weight: .medium))
+                .font(Theme.secondary)
                 .foregroundStyle(Color.panelTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -139,7 +139,11 @@ struct OnboardingView: View {
                     step = Step(rawValue: step.rawValue - 1) ?? .general
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(preferences.panelTheme.accent)
+                // Accent is reserved for the primary action (Next/Get
+                // Started); Back stays secondary so there's only one accent
+                // pull in the footer, matching this fork's accent-sparingly
+                // design language.
+                .foregroundStyle(Color.panelTextSecondary)
                 .font(.system(size: 13, weight: .medium))
             }
 

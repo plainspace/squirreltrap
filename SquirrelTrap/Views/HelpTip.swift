@@ -20,17 +20,19 @@ struct HelpTip: View {
     }
 
     var body: some View {
+        // Upstream's click-to-show popover, on this fork's tokens: tertiary at
+        // rest rather than secondary-at-60%, and the shared type scale.
         Button {
             isShowingPopover = true
         } label: {
             Image(systemName: "questionmark.circle")
-                .font(.system(size: 11))
-                .foregroundStyle(Color.panelTextSecondary.opacity(0.6))
+                .font(Theme.secondary)
+                .foregroundStyle(Color.panelTertiary)
         }
         .buttonStyle(.plain)
         .popover(isPresented: $isShowingPopover) {
             Text(text)
-                .font(.system(size: 12))
+                .font(Theme.body)
                 .foregroundStyle(Color.panelTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: 220, alignment: .leading)

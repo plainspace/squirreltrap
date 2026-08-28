@@ -33,6 +33,7 @@ struct PreferencesSyncTab: View {
                 HStack(spacing: 6) {
                     Toggle("", isOn: $preferences.iCloudSyncEnabled)
                         .labelsHidden()
+                        .disabled(!cloudSyncEngine.isAvailable)
                         .onChange(of: preferences.iCloudSyncEnabled) { oldValue, newValue in
                             // Same reasoning as Reminders sync: flip the toggle on and
                             // wait for the every-Nth-show fallback (or a push that
@@ -53,7 +54,7 @@ struct PreferencesSyncTab: View {
                     }
                     Spacer(minLength: 8)
                     Text(cloudSyncEngine.accountStatusDescription)
-                        .font(.system(size: 11))
+                        .font(Theme.secondary)
                         .foregroundStyle(Color.panelTextSecondary)
                 }
             }
@@ -62,8 +63,11 @@ struct PreferencesSyncTab: View {
                 GridRow {
                     Text("")
                     Text(lastSyncError)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.red)
+                        .font(Theme.secondary)
+                        // panelDestructive rather than .red: it resolves per
+                        // appearance, where a raw .red vibrates against the
+                        // dark card.
+                        .foregroundStyle(Color.panelDestructive)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -71,7 +75,7 @@ struct PreferencesSyncTab: View {
                 GridRow {
                     Text("")
                     Text(lastSyncSummary)
-                        .font(.system(size: 11))
+                        .font(Theme.secondary)
                         .foregroundStyle(Color.panelTextSecondary)
                 }
             }
@@ -107,7 +111,7 @@ struct PreferencesSyncTab: View {
                     .help("Copies your open (not completed) items as CSV to the clipboard")
                     if showCopiedConfirmation {
                         Label("Copied", systemImage: "checkmark.circle")
-                            .font(.system(size: 11))
+                            .font(Theme.secondary)
                             .foregroundStyle(Color.panelTextSecondary)
                     }
                 }

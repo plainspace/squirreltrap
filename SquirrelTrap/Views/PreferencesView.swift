@@ -72,20 +72,20 @@ struct PreferencesView: View {
 
             footer
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Theme.gutter)
         .padding(.bottom, 12)
-        .padding(.top, 10)
-        .frame(width: 520, height: 460, alignment: .top)
+        .padding(.top, 12)
+        .frame(width: PromptPanelView.cardSize.width, height: PromptPanelView.cardSize.height, alignment: .top)
         .onExitCommand { if !hasActiveConfirmation { onDismiss() } }
     }
 
     private var header: some View {
         VStack(spacing: 2) {
             Text("Squirrel Trap")
-                .font(.system(size: 13, weight: .bold))
+                .font(Theme.title)
                 .foregroundStyle(Color.panelTextPrimary)
             Text("Preferences")
-                .font(.system(size: 11, weight: .medium))
+                .font(Theme.secondary)
                 .foregroundStyle(Color.panelTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -102,7 +102,7 @@ struct PreferencesView: View {
                     .resizable()
                     .frame(width: 108, height: 108)
                 Text("v\(appVersionString)")
-                    .font(.system(size: 10))
+                    .font(Theme.secondary)
                     .foregroundStyle(Color.panelTextSecondary)
                 updateStatus
             }
@@ -120,8 +120,10 @@ struct PreferencesView: View {
     }
 
     /// Custom-styled rather than .pickerStyle(.segmented) or a native sidebar
-    /// List -- both would pull in chrome that clashes with the translucent
-    /// blue glass card look everywhere else in this app.
+    /// List -- both would pull in chrome that clashes with the flat,
+    /// hairline-separated look everywhere else in this app. Selection is a
+    /// solid accent fill with white text -- a translucent tint reads fine in
+    /// dark but loses contrast against a white sidebar in light mode.
     private func tabButton(_ tab: PreferencesTab) -> some View {
         Button {
             selectedTab = tab
@@ -134,13 +136,18 @@ struct PreferencesView: View {
                 Spacer(minLength: 0)
             }
             .font(.system(size: 12, weight: selectedTab == tab ? .semibold : .regular))
-            .foregroundStyle(selectedTab == tab ? Color.panelTextPrimary : Color.panelTextSecondary)
+            .foregroundStyle(selectedTab == tab ? .white : Color.panelTextSecondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background {
                 if selectedTab == tab {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(preferences.panelTheme.accent.opacity(0.35))
+                    // Solid fill, not upstream's 0.35 opacity: kept per the
+                    // comment above -- a translucent tint loses contrast
+                    // against a white sidebar in light mode. The color itself
+                    // is upstream's selectable panelTheme.accent rather than
+                    // the fixed system accent.
+                    RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                        .fill(preferences.panelTheme.accent)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,11 +165,11 @@ struct PreferencesView: View {
                 .controlSize(.mini)
         } else if let update = updateChecker.availableUpdate {
             Link("Update to v\(update.version)", destination: update.url)
-                .font(.system(size: 10))
+                .font(Theme.secondary)
         } else if preferences.lastUpdateCheckAt != nil {
             VStack(spacing: 3) {
                 Label("Up to date", systemImage: "checkmark.circle")
-                    .font(.system(size: 10))
+                    .font(Theme.secondary)
                     .foregroundStyle(Color.panelTextSecondary)
                 Button("Check Again") {
                     Task { await updateChecker.check() }
@@ -187,7 +194,10 @@ struct PreferencesView: View {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13))
-                    .foregroundStyle(preferences.panelTheme.accent)
+                    // Matches the footer's gear icon (PromptPanelView): a
+                    // utility/nav control stays secondary, not accent, so
+                    // accent is reserved for genuinely primary actions.
+                    .foregroundStyle(Color.panelTextSecondary)
             }
             .buttonStyle(.plain)
             .help("Back to Squirrel Trap")

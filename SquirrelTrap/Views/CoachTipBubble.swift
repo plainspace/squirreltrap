@@ -13,7 +13,7 @@ struct CoachTipBubble: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(message)
-                .font(.system(size: 12))
+                .font(Theme.body)
                 .foregroundStyle(Color.panelTextPrimary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(width: 220, alignment: .leading)
@@ -22,8 +22,11 @@ struct CoachTipBubble: View {
                 onDismiss()
             }
             .buttonStyle(.plain)
+            // Upstream's per-tip toggle is gone (dismissal is now one-and-done,
+            // with a master Show Tips switch in Preferences), and the accent
+            // comes from the selected panel theme rather than the fixed asset.
             .foregroundStyle(themeAccent)
-            .font(.system(size: 12, weight: .semibold))
+            .font(Theme.bodyMedium)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(14)

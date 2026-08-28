@@ -75,33 +75,33 @@ struct ReminderSyncPreferencesView: View {
                     ProgressView()
                         .controlSize(.small)
                     Text("Syncing Reminders…")
-                        .font(.system(size: 11))
+                        .font(Theme.secondary)
                         .foregroundStyle(Color.panelTextSecondary)
                 }
             }
 
             Text("Only the task text and done/not-done status sync — no due dates, no favorites, no in-app reminder timers.")
-                .font(.system(size: 11))
+                .font(Theme.secondary)
                 .foregroundStyle(Color.panelTextSecondary)
 
             Spacer(minLength: 0)
 
             footer
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Theme.gutter)
         .padding(.bottom, 12)
-        .padding(.top, 10)
-        .frame(width: 520, height: 460, alignment: .top)
+        .padding(.top, 12)
+        .frame(width: PromptPanelView.cardSize.width, height: PromptPanelView.cardSize.height, alignment: .top)
         .onExitCommand(perform: onBack)
     }
 
     private var header: some View {
         VStack(spacing: 2) {
             Text("Squirrel Trap")
-                .font(.system(size: 13, weight: .bold))
+                .font(Theme.title)
                 .foregroundStyle(Color.panelTextPrimary)
             Text("Reminders Sync")
-                .font(.system(size: 11, weight: .medium))
+                .font(Theme.secondary)
                 .foregroundStyle(Color.panelTextSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -130,7 +130,7 @@ struct ReminderSyncPreferencesView: View {
                     .controlSize(.small)
             } else if accessDenied {
                 Text("Reminders access was denied. Enable it in System Settings → Privacy & Security → Reminders, then try again.")
-                    .font(.system(size: 11))
+                    .font(Theme.secondary)
                     .foregroundStyle(Color.panelTextSecondary)
             } else if !availableLists.isEmpty {
                 Picker("", selection: $preferences.reminderSyncListIdentifier) {
@@ -143,11 +143,11 @@ struct ReminderSyncPreferencesView: View {
                 .labelsHidden()
             } else if preferences.reminderSyncListIdentifier != nil {
                 Text("Using a previously chosen list — tap Load Lists to change it.")
-                    .font(.system(size: 11))
+                    .font(Theme.secondary)
                     .foregroundStyle(Color.panelTextSecondary)
             } else {
                 Text("No list chosen yet.")
-                    .font(.system(size: 11))
+                    .font(Theme.secondary)
                     .foregroundStyle(Color.panelTextSecondary)
             }
         }
@@ -171,7 +171,10 @@ struct ReminderSyncPreferencesView: View {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13))
-                    .foregroundStyle(preferences.panelTheme.accent)
+                    // Same utility-icon rule as PreferencesView's back
+                    // chevron and PromptPanelView's gear: secondary, not
+                    // accent.
+                    .foregroundStyle(Color.panelTextSecondary)
             }
             .buttonStyle(.plain)
             .help("Back to Preferences")

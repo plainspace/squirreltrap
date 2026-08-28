@@ -84,7 +84,10 @@ struct PreferencesAppearanceTab: View {
                 } label: {
                     Image(systemName: preferences.defaultColorTag != nil ? "paintpalette.fill" : "paintpalette")
                         .font(.system(size: 13))
-                        .foregroundStyle(preferences.defaultColorTag?.color ?? preferences.panelTheme.accent.opacity(0.5))
+                        // Tertiary at rest (no default color set yet), matching
+                        // GhostIconButtonStyle's own resting/restingTint split
+                        // rather than a dimmed accent.
+                        .foregroundStyle(preferences.defaultColorTag?.color ?? Color.panelTertiary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(preferences.defaultColorTag != nil ? "Change or remove default color" : "Set a default color")
@@ -143,11 +146,14 @@ struct PreferencesAppearanceTab: View {
         if permissionGranted {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle")
-                    .foregroundStyle(preferences.panelTheme.accent)
+                    // Matches the "Up to date" checkmark in PreferencesView's
+                    // updateStatus: a confirmation checkmark stays secondary,
+                    // not accent.
+                    .foregroundStyle(Color.panelTextSecondary)
                 Text("Watching for Cmd+Tab")
                     .foregroundStyle(Color.panelTextSecondary)
             }
-            .font(.system(size: 11))
+            .font(Theme.secondary)
         } else {
             Button("Grant Input Monitoring Access…") {
                 PermissionManager.requestAccessOrOpenSettings()
