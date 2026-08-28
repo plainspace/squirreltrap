@@ -1,5 +1,6 @@
 import CloudKit
 import Foundation
+import Security
 
 /// Syncs IntentStore across your Macs via CloudKit's private database.
 /// Unlike ReminderSyncEngine (a foreign app, deliberately conservative,
@@ -27,23 +28,60 @@ final class CloudSyncEngine: ObservableObject {
     /// at the start of every sync() attempt.
     @Published private(set) var lastSyncSummary: String?
 
+    static let containerIdentifier = "iCloud.com.plainspace.squirreltrap"
+
     private let intentStore: IntentStore
     private let preferences: AppPreferences
-    private let container: CKContainer
-    private let database: CKDatabase
+    /// nil when the running binary was signed without the matching iCloud
+    /// container entitlement — see `isContainerEntitled`. Everything below
+    /// treats that as "iCloud sync isn't available on this build" and no-ops.
+    private let container: CKContainer?
+    private let database: CKDatabase?
     private let zoneID: CKRecordZone.ID
     private let recordType = "IntentEntry"
     private let subscriptionID = "squirreltrap-changes"
 
+    /// `CKContainer(identifier:)` does not return nil or throw when the
+    /// container is absent from the app's entitlements — it traps, taking the
+    /// whole process down. Since this engine is constructed eagerly from
+    /// `applicationDidFinishLaunching`, an unentitled build would crash on
+    /// launch before showing any UI. So the entitlement is read off our own
+    /// code signature first and the container is only built if it's really
+    /// there. Debug builds signed on a free Personal Team are exactly this
+    /// case: a Personal Team cannot provision CloudKit at all.
+    private static var isContainerEntitled: Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(
+                  task, "com.apple.developer.icloud-container-identifiers" as CFString, nil
+              ) as? [String]
+        else { return false }
+        return value.contains(containerIdentifier)
+    }
+
+    /// True when this build can talk to CloudKit at all. Preferences uses it to
+    /// explain why the iCloud controls are inert rather than leaving a toggle
+    /// that silently does nothing.
+    var isAvailable: Bool { container != nil }
+
     init(intentStore: IntentStore, preferences: AppPreferences) {
         self.intentStore = intentStore
         self.preferences = preferences
-        container = CKContainer(identifier: "iCloud.com.jtoeman.squirreltrap")
-        database = container.privateCloudDatabase
+        let container = Self.isContainerEntitled
+            ? CKContainer(identifier: Self.containerIdentifier)
+            : nil
+        self.container = container
+        database = container?.privateCloudDatabase
         zoneID = CKRecordZone.ID(zoneName: "IntentEntries", ownerName: CKCurrentUserDefaultName)
+        if container == nil {
+            accountStatusDescription = "Unavailable in this build"
+        }
     }
 
     func refreshAccountStatus() {
+        guard let container else {
+            accountStatusDescription = "Unavailable in this build"
+            return
+        }
         container.accountStatus { [weak self] status, _ in
             Task { @MainActor in
                 guard let self else { return }
@@ -63,6 +101,7 @@ final class CloudSyncEngine: ObservableObject {
     /// persisted flag. Actual pull/push depends only on this succeeding.
     @discardableResult
     private func ensureZoneExists() async -> Bool {
+        guard let database else { return false }
         guard !preferences.hasSetUpCloudSync else { return true }
 
         let zone = CKRecordZone(zoneID: zoneID)
@@ -89,6 +128,7 @@ final class CloudSyncEngine: ObservableObject {
     /// actual data sync (pull/push only need the zone), so this is best
     /// effort and retried on the next sync() call if it fails.
     private func ensureSubscriptionExists() async {
+        guard let database else { return }
         guard !preferences.hasCreatedCloudSubscription else { return }
 
         let subscription = CKDatabaseSubscription(subscriptionID: subscriptionID)
@@ -112,6 +152,7 @@ final class CloudSyncEngine: ObservableObject {
     }
 
     func sync() async {
+        guard database != nil else { return }
         guard preferences.iCloudSyncEnabled else { return }
         isSyncing = true
         lastSyncError = nil
@@ -128,6 +169,7 @@ final class CloudSyncEngine: ObservableObject {
     }
 
     private func pull() async {
+        guard let database else { return }
         let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
         config.previousServerChangeToken = preferences.cloudChangeToken
         let operation = CKFetchRecordZoneChangesOperation(recordZoneIDs: [zoneID], configurationsByRecordZoneID: [zoneID: config])
@@ -293,6 +335,7 @@ final class CloudSyncEngine: ObservableObject {
     /// in that batch from ever being retried, since their lastModifiedAt was
     /// now stuck behind an already-advanced timestamp.
     private func push() async {
+        guard let database else { return }
         let lastSync = preferences.lastCloudSyncAt ?? .distantPast
         let toSave = intentStore.entries
             .filter { $0.lastModifiedAt > lastSync }
