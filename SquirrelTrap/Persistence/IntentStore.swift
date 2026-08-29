@@ -188,6 +188,20 @@ final class IntentStore: ObservableObject {
         save()
     }
 
+    /// Rewrites an entry's text. Trims first and ignores an empty result: a
+    /// row with no text is unreachable (there is nothing left to click to edit
+    /// it again), so clearing the field is treated as a cancelled edit rather
+    /// than as a request to blank the row. Deleting is what the trash is for.
+    func setText(id: UUID, text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
+        guard entries[index].text != trimmed else { return }
+        entries[index].text = trimmed
+        entries[index].lastModifiedAt = Date()
+        save()
+    }
+
     func setColor(id: UUID, colorTag: TodoColorTag?) {
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].colorTag = colorTag

@@ -27,10 +27,15 @@ struct IntentRowView: View {
     var onCancelReminder: (() -> Void)?
     var onSetColor: ((TodoColorTag?) -> Void)?
     var onDelete: (() -> Void)?
+    /// Rewrites the row's text. Absent means the row is not editable.
+    var onCommitEdit: ((String) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
     @State private var isShowingReminderPicker = false
     @State private var isShowingColorPicker = false
+    @State private var isEditing = false
+    @State private var draft = ""
+    @FocusState private var isEditFieldFocused: Bool
 
     /// Not private — PreferencesView's "Default Alarm" picker reuses this
     /// exact same list, so the two stay in sync automatically.
@@ -59,7 +64,7 @@ struct IntentRowView: View {
     /// something — a set alarm, an assigned colour, a favourited star — stays
     /// visible at rest. Otherwise hovering away would appear to unset it.
     private var showsSecondaryControls: Bool {
-        isHovering || isSelected || isShowingReminderPicker || isShowingColorPicker
+        isHovering || isSelected || isShowingReminderPicker || isShowingColorPicker || isEditing
     }
 
     var body: some View {
@@ -85,12 +90,45 @@ struct IntentRowView: View {
                 .accessibilityLabel(entry.completed ? "Mark not done" : "Mark done")
                 .accessibilityValue(entry.completed ? "Completed" : "Not completed")
 
-            Text(entry.text)
-                .font(Theme.body)
-                .strikethrough(entry.completed, color: .panelTextSecondary)
-                .foregroundStyle(entry.completed ? Color.panelTextSecondary : Color.panelTextPrimary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+            if isEditing {
+                // Deliberately unstyled: no border, no fill, the same font and
+                // position the Text had. Editing a to-do should look like the
+                // words became editable, not like a form opened on top of the
+                // row. The caret is the only thing that needs to say "this is
+                // live now".
+                TextField("", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(Theme.body)
+                    .foregroundStyle(Color.panelTextPrimary)
+                    .focused($isEditFieldFocused)
+                    .onSubmit(commitEdit)
+                    // Escape abandons the edit rather than dismissing the
+                    // panel. A focused field consumes Escape before the panel's
+                    // own handlers see it, which is what makes this safe: the
+                    // panel cannot close out from under an unsaved edit.
+                    .onExitCommand(perform: cancelEdit)
+                    .onChange(of: isEditFieldFocused) { _, focused in
+                        // Clicking away commits. Losing the field without
+                        // saving would silently throw the edit away, and there
+                        // is no undo here.
+                        if !focused { commitEdit() }
+                    }
+            } else {
+                Text(entry.text)
+                    .font(Theme.body)
+                    .strikethrough(entry.completed, color: .panelTextSecondary)
+                    .foregroundStyle(entry.completed ? Color.panelTextSecondary : Color.panelTextPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .contentShape(Rectangle())
+                    // Double-click, the same as renaming a file. No pencil icon:
+                    // the row already hides four controls behind hover, and a
+                    // fifth for something this rare would cost every row width
+                    // to serve the least common action.
+                    .onTapGesture(count: 2, perform: beginEdit)
+                    .help(onCommitEdit == nil ? "" : "Double-click to edit")
+                    .accessibilityAddTraits(onCommitEdit == nil ? [] : .isButton)
+            }
 
             Spacer(minLength: 8)
 
@@ -158,6 +196,35 @@ struct IntentRowView: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: showsSecondaryControls)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isSelected)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHighlighted)
+        .accessibilityAction(named: "Edit", beginEdit)
+        // A row that vanishes mid-edit (checked off, cleared, synced away)
+        // would otherwise leave the field up, and committing it would write to
+        // an entry that no longer exists.
+        .onDisappear(perform: cancelEdit)
+    }
+
+    private func beginEdit() {
+        guard onCommitEdit != nil, !isEditing else { return }
+        draft = entry.text
+        isEditing = true
+        // Next runloop: the field does not exist yet on this pass, so focusing
+        // it now is a no-op and the row would sit in edit mode with no caret.
+        DispatchQueue.main.async { isEditFieldFocused = true }
+    }
+
+    /// Guarded on isEditing because two paths land here for one edit: Return
+    /// fires onSubmit, which clears focus, which fires the focus change too.
+    private func commitEdit() {
+        guard isEditing else { return }
+        isEditing = false
+        isEditFieldFocused = false
+        onCommitEdit?(draft)
+    }
+
+    private func cancelEdit() {
+        guard isEditing else { return }
+        isEditing = false
+        isEditFieldFocused = false
     }
 
     @ViewBuilder

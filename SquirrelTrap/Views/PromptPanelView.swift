@@ -507,6 +507,11 @@ struct PromptPanelView: View {
                                 onSetReminder: { duration in viewModel.setReminder(for: entry.id, duration: duration) },
                                 onCancelReminder: { viewModel.cancelReminder(for: entry.id) },
                                 onSetColor: { color in intentStore.setColor(id: entry.id, colorTag: color) },
+                                onDelete: {
+                                    intentStore.delete(id: entry.id)
+                                    AnalyticsService.shared.track(.taskDeleted)
+                                },
+                                onCommitEdit: { text in intentStore.setText(id: entry.id, text: text) },
                                 onDrop: { draggedID in intentStore.movePendingEntry(id: draggedID, before: entry.id) },
                                 onDragHandleHoverChanged: onDragHandleHoverChanged
                             )
@@ -564,7 +569,8 @@ struct PromptPanelView: View {
                                     onDelete: {
                                         intentStore.delete(id: entry.id)
                                         AnalyticsService.shared.track(.taskDeleted)
-                                    }
+                                    },
+                                    onCommitEdit: { text in intentStore.setText(id: entry.id, text: text) }
                                 )
                                 // See the pending list above: distinct identity
                                 // namespace, so crossing between the two lists
