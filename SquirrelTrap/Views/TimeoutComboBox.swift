@@ -40,17 +40,31 @@ struct TimeoutComboBox: NSViewRepresentable {
         }
 
         func controlTextDidChange(_ notification: Notification) {
-            commit(from: notification.object)
+            guard let comboBox = notification.object as? NSComboBox,
+                  let number = Double(comboBox.stringValue) else { return }
+            apply(number)
         }
 
+        /// Reads the selected item, never `stringValue`.
+        ///
+        /// AppKit sends this notification BEFORE it copies the chosen item into
+        /// the text field, so `stringValue` here is still the value being
+        /// replaced. Committing from it wrote the old number straight back:
+        /// picking 3 seconds stored 7, and updateNSView then dutifully restored
+        /// "7" in the field, so the setting appeared to refuse every choice
+        /// made from the dropdown. Typing a number worked, which is what made
+        /// it look like the preference itself was ignored rather than unsaved.
         func comboBoxSelectionDidChange(_ notification: Notification) {
-            commit(from: notification.object)
+            guard let comboBox = notification.object as? NSComboBox,
+                  let selected = comboBox.objectValueOfSelectedItem as? String,
+                  let number = Double(selected) else { return }
+            apply(number)
         }
 
-        // Typed values are clamped rather than rejected, so a stray "0" or a
-        // huge number can't produce a broken (zero/negative or absurdly long) Timer interval.
-        private func commit(from object: Any?) {
-            guard let comboBox = object as? NSComboBox, let number = Double(comboBox.stringValue) else { return }
+        // Values are clamped rather than rejected, so a stray "0" or a huge
+        // number can't produce a broken (zero/negative or absurdly long) Timer
+        // interval.
+        private func apply(_ number: Double) {
             value.wrappedValue = min(max(number, 1), 300)
         }
     }
