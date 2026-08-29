@@ -19,93 +19,82 @@ struct PreferencesActivityTab: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Completed per day, last 7 days")
-                .font(Theme.sectionHeader)
-                .foregroundStyle(Color.panelTextSecondary)
-                .textCase(.uppercase)
-                .kerning(0.5)
-
-            // The x-axis uses the actual Date (not a pre-formatted day-name
-            // string) so Swift Charts orders bars chronologically -- a
-            // categorical String axis sorts alphabetically instead (e.g. Fri
-            // before Mon), which scrambled real data out of date order.
-            Chart(days, id: \.date) { day in
-                BarMark(
-                    x: .value("Day", day.date, unit: .day),
-                    y: .value("Completed", day.count)
-                )
-                .foregroundStyle(preferences.panelTheme.accent)
-                .annotation(position: .top) {
-                    if day.count > 0 {
-                        Text("\(day.count)")
+        SettingsForm {
+            Section("Last 7 Days") {
+                // The x-axis uses the actual Date (not a pre-formatted day-name
+                // string) so Swift Charts orders bars chronologically -- a
+                // categorical String axis sorts alphabetically instead (e.g. Fri
+                // before Mon), which scrambled real data out of date order.
+                Chart(days, id: \.date) { day in
+                    BarMark(
+                        x: .value("Day", day.date, unit: .day),
+                        y: .value("Completed", day.count)
+                    )
+                    .foregroundStyle(preferences.panelTheme.accent)
+                    .annotation(position: .top) {
+                        if day.count > 0 {
+                            Text("\(day.count)")
+                                .font(Theme.secondary)
+                                .foregroundStyle(Color.panelTextSecondary)
+                        }
+                    }
+                }
+                .chartYAxis(.hidden)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { _ in
+                        AxisValueLabel(format: .dateTime.weekday(.abbreviated))
                             .font(Theme.secondary)
                             .foregroundStyle(Color.panelTextSecondary)
                     }
                 }
-            }
-            .chartYAxis(.hidden)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { _ in
-                    AxisValueLabel(format: .dateTime.weekday(.abbreviated))
-                        .font(Theme.secondary)
-                        .foregroundStyle(Color.panelTextSecondary)
-                }
-            }
-            .frame(height: 160)
+                .frame(height: 130)
+                // The chart is the row, so it gets the row's full width rather
+                // than sitting in the control column beside an empty label.
+                .frame(maxWidth: .infinity)
 
-            Divider()
-
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-                GridRow {
-                    Text("Most Tasks In a Single Day")
-                        .foregroundStyle(Color.panelTextSecondary)
+                LabeledContent {
                     Text("\(maxInASingleDay)")
                         .foregroundStyle(Color.panelTextPrimary)
+                } label: {
+                    SettingLabel("Best day")
                 }
-                GridRow {
-                    Text("Average Tasks / Day")
-                        .foregroundStyle(Color.panelTextSecondary)
+
+                LabeledContent {
                     Text(averagePerDay.formatted(.number.precision(.fractionLength(1))))
                         .foregroundStyle(Color.panelTextPrimary)
+                } label: {
+                    SettingLabel("Average per day")
                 }
             }
-            .font(.system(size: 12))
 
-            Divider()
-
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-                GridRow {
-                    HStack(spacing: 4) {
-                        Text("Show Tips")
-                            .foregroundStyle(Color.panelTextSecondary)
-                            .lineLimit(1)
-                        HelpTip("Occasional popovers that point out features like Snooze or Default Alarm. Turning this off doesn't lose your progress through them -- turn it back on and the rotation picks up where it left off.")
-                    }
+            Section("Tips") {
+                LabeledContent {
                     Toggle("", isOn: $preferences.showTips)
                         .labelsHidden()
+                } label: {
+                    SettingLabel("Show tips", "Occasional popovers that point out features like Snooze or Default Alarm. Turning this off doesn't lose your progress through them -- turn it back on and the rotation picks up where it left off.")
                 }
-            }
-            .font(.system(size: 12))
 
-            HStack(spacing: 8) {
-                Button("Reset All Tips") {
-                    preferences.dismissedCoachTips = []
-                    preferences.coachTipRotationIndex = 0
-                    showResetConfirmation = true
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        showResetConfirmation = false
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Button("Reset") {
+                            preferences.dismissedCoachTips = []
+                            preferences.coachTipRotationIndex = 0
+                            showResetConfirmation = true
+                            Task {
+                                try? await Task.sleep(for: .seconds(2))
+                                showResetConfirmation = false
+                            }
+                        }
+                        if showResetConfirmation {
+                            Label("Reset", systemImage: "checkmark.circle")
+                                .foregroundStyle(Color.panelTextSecondary)
+                        }
                     }
-                }
-                .help("Brings back every coach tip you've dismissed, so the rotation starts over")
-                if showResetConfirmation {
-                    Label("Reset", systemImage: "checkmark.circle")
-                        .font(Theme.secondary)
-                        .foregroundStyle(Color.panelTextSecondary)
+                } label: {
+                    SettingLabel("Dismissed tips", "Brings back every coach tip you've dismissed, so the rotation starts over.")
                 }
             }
-            .font(.system(size: 12))
         }
     }
 }

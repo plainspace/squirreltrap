@@ -352,6 +352,43 @@ extension View {
     }
 }
 
+/// The one container every Preferences tab is built from.
+///
+/// Each tab used to hand-roll a two-column `Grid`: a label cell and a control
+/// cell, with the column widths falling out of whatever happened to be the
+/// longest string on that tab. Four tabs meant four different label columns and
+/// four different row rhythms, and nothing anywhere said which settings belonged
+/// together.
+///
+/// A grouped `Form` is what macOS System Settings itself is built from, and it
+/// brings the parts that were being approximated by hand: a consistent label
+/// column, platform row metrics, and `Section` as a real grouping primitive
+/// rather than a `Divider` between rows. Putting it behind one container means
+/// the four tabs cannot drift apart again.
+struct SettingsForm<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        Form {
+            content
+                // Inside the Form, so it can reach the Form's own scroll view.
+                // A Form scrolls once its content outgrows the tab, and the
+                // default legacy scroller would eat layout width from an
+                // already narrow column.
+                .overlayScrollers()
+        }
+        .formStyle(.grouped)
+        .font(Theme.secondary)
+        // The grouped Form paints an opaque list background, which would sit as
+        // a solid slab on top of the panel's blur.
+        .scrollContentBackground(.hidden)
+    }
+}
+
+// SettingLabel, the other half of this container, lives in HelpTip.swift: it
+// depends on HelpTip, and this file is also compiled into the widget target,
+// which does not include it.
+
 /// The one interaction vocabulary for every small icon button on the surface:
 /// footer controls, row controls, back chevrons.
 ///

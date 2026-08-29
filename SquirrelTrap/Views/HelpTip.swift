@@ -40,3 +40,33 @@ struct HelpTip: View {
         }
     }
 }
+
+/// One label treatment for every settings row: the name, with its explanation
+/// behind a HelpTip rather than as permanent subtext.
+///
+/// A subtitle under every row is the other native option, and it is what System
+/// Settings does at full window width. This surface is a few hundred points
+/// wide, where the same treatment turns a settings list into a wall of prose.
+///
+/// Lives here rather than beside SettingsForm in GlassTheme.swift because that
+/// file is also compiled into the widget target, which does not include HelpTip.
+struct SettingLabel: View {
+    let title: String
+    let help: String?
+
+    init(_ title: String, _ help: String? = nil) {
+        self.title = title
+        self.help = help
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(title)
+                .foregroundStyle(Color.panelTextSecondary)
+                .lineLimit(1)
+            if let help {
+                HelpTip(help)
+            }
+        }
+    }
+}

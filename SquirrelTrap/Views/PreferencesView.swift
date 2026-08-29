@@ -33,155 +33,101 @@ struct PreferencesView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
+        VStack(alignment: .leading, spacing: 0) {
+            tabBar
+                .padding(.horizontal, Theme.gutter)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
 
-            HStack(alignment: .top, spacing: 14) {
-                sidebar
-
-                Divider()
-
-                Group {
-                    switch selectedTab {
-                    case .general:
-                        PreferencesGeneralTab(
-                            preferences: preferences,
-                            intentStore: intentStore,
-                            reminderScheduler: reminderScheduler,
-                            launchAtLoginEnabled: $launchAtLoginEnabled,
-                            onConfirmationActiveChanged: handleConfirmationActiveChanged,
-                            onQuit: onQuit
-                        )
-                    case .appearance:
-                        PreferencesAppearanceTab(preferences: preferences, permissionGranted: $permissionGranted)
-                    case .sync:
-                        PreferencesSyncTab(
-                            preferences: preferences,
-                            cloudSyncEngine: cloudSyncEngine,
-                            intentStore: intentStore,
-                            onOpenReminderSync: onOpenReminderSync
-                        )
-                    case .activity:
-                        PreferencesActivityTab(intentStore: intentStore, preferences: preferences)
-                    }
+            Group {
+                switch selectedTab {
+                case .general:
+                    PreferencesGeneralTab(
+                        preferences: preferences,
+                        intentStore: intentStore,
+                        reminderScheduler: reminderScheduler,
+                        launchAtLoginEnabled: $launchAtLoginEnabled,
+                        onConfirmationActiveChanged: handleConfirmationActiveChanged,
+                        onQuit: onQuit,
+                        updateChecker: updateChecker
+                    )
+                case .appearance:
+                    PreferencesAppearanceTab(preferences: preferences, permissionGranted: $permissionGranted)
+                case .sync:
+                    PreferencesSyncTab(
+                        preferences: preferences,
+                        cloudSyncEngine: cloudSyncEngine,
+                        intentStore: intentStore,
+                        onOpenReminderSync: onOpenReminderSync
+                    )
+                case .activity:
+                    PreferencesActivityTab(intentStore: intentStore, preferences: preferences)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-
-            Spacer(minLength: 0)
+            // No horizontal gutter here: a grouped Form insets its own groups,
+            // and adding the panel's gutter on top of that would indent them
+            // twice and squeeze the label and control columns together.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             footer
+                .padding(.horizontal, Theme.gutter)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
         }
-        .padding(.horizontal, Theme.gutter)
-        .padding(.bottom, 12)
-        .padding(.top, 12)
         .frame(width: PromptPanelView.cardSize.width, height: PromptPanelView.cardSize.height, alignment: .top)
         .onExitCommand { if !hasActiveConfirmation { onDismiss() } }
     }
 
-    private var header: some View {
-        VStack(spacing: 2) {
-            Text("Squirrel Trap")
-                .font(Theme.title)
-                .foregroundStyle(Color.panelTextPrimary)
-            Text("Preferences")
-                .font(Theme.secondary)
-                .foregroundStyle(Color.panelTextSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    /// Left column: logo/version/update-check up top (always visible regardless
-    /// of tab, since it lives here rather than inside any tab's content), then
-    /// the tab list below it -- a vertical sidebar rather than a horizontal tab
-    /// bar, matching the reference layout this was modeled on.
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(spacing: 4) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 108, height: 108)
-                Text("v\(appVersionString)")
-                    .font(Theme.secondary)
-                    .foregroundStyle(Color.panelTextSecondary)
-                updateStatus
-            }
-            .frame(maxWidth: .infinity)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(PreferencesTab.allCases) { tab in
-                    tabButton(tab)
-                }
+    /// Tabs across the top, not down the left.
+    ///
+    /// The sidebar this replaced was 132pt of a 440pt panel -- roughly a third
+    /// of the width -- and most of it was an app icon and a version string,
+    /// neither of which is a setting. What it cost was the content column:
+    /// every tab had well under 250pt to place a label and a control, which is
+    /// why they were built as hand-rolled two-column Grids in the first place.
+    /// Moving the tabs to a single row gives the settings the full width and
+    /// lets them be native grouped Forms; the version and update check moved
+    /// into General, where Mac apps put them anyway.
+    private var tabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(PreferencesTab.allCases) { tab in
+                tabButton(tab)
             }
         }
-        .frame(width: 132, alignment: .leading)
     }
 
-    /// Custom-styled rather than .pickerStyle(.segmented) or a native sidebar
-    /// List -- both would pull in chrome that clashes with the flat,
-    /// hairline-separated look everywhere else in this app. Selection is a
-    /// solid accent fill with white text -- a translucent tint reads fine in
-    /// dark but loses contrast against a white sidebar in light mode.
+    /// Custom-styled rather than .pickerStyle(.segmented) -- that would pull in
+    /// chrome that clashes with the flat, hairline-separated look everywhere
+    /// else in this app. Selection is a solid accent fill with white text -- a
+    /// translucent tint reads fine in dark but loses contrast in light mode.
     private func tabButton(_ tab: PreferencesTab) -> some View {
         Button {
             selectedTab = tab
             AnalyticsService.shared.track(.preferencesTabOpened, properties: ["tab": tab.rawValue])
         } label: {
-            HStack(spacing: 8) {
+            VStack(spacing: 3) {
                 Image(systemName: tab.icon)
-                    .frame(width: 14)
+                    .font(.system(size: 13))
                 Text(tab.label)
-                Spacer(minLength: 0)
+                    .font(.system(size: 11, weight: selectedTab == tab ? .semibold : .regular))
             }
-            .font(.system(size: 12, weight: selectedTab == tab ? .semibold : .regular))
             .foregroundStyle(selectedTab == tab ? .white : Color.panelTextSecondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity)
             .background {
                 if selectedTab == tab {
-                    // Solid fill, not upstream's 0.35 opacity: kept per the
-                    // comment above -- a translucent tint loses contrast
-                    // against a white sidebar in light mode. The color itself
-                    // is upstream's selectable panelTheme.accent rather than
-                    // the fixed system accent.
+                    // Solid fill, not upstream's 0.35 opacity: a translucent
+                    // tint loses contrast in light mode. The color itself is
+                    // upstream's selectable panelTheme.accent rather than the
+                    // fixed system accent.
                     RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
                         .fill(preferences.panelTheme.accent)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    /// Persistent confirmation that a check actually happened, rather than a
-    /// manual "Check for Updates" click silently reverting to itself with no
-    /// visible feedback when nothing newer is found.
-    @ViewBuilder
-    private var updateStatus: some View {
-        if updateChecker.isChecking {
-            ProgressView()
-                .controlSize(.mini)
-        } else if let update = updateChecker.availableUpdate {
-            Link("Update to v\(update.version)", destination: update.url)
-                .font(Theme.secondary)
-        } else if preferences.lastUpdateCheckAt != nil {
-            VStack(spacing: 3) {
-                Label("Up to date", systemImage: "checkmark.circle")
-                    .font(Theme.secondary)
-                    .foregroundStyle(Color.panelTextSecondary)
-                Button("Check Again") {
-                    Task { await updateChecker.check() }
-                }
-                .controlSize(.mini)
-            }
-        } else {
-            Button("Check for Updates") {
-                Task { await updateChecker.check() }
-            }
-            .controlSize(.mini)
-        }
+        .accessibilityAddTraits(selectedTab == tab ? [.isButton, .isSelected] : .isButton)
     }
 
     /// Mirrors the main panel's footer exactly: a utility icon at the bottom-left

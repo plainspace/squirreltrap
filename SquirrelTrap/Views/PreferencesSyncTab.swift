@@ -10,27 +10,14 @@ struct PreferencesSyncTab: View {
 
     @State private var showCopiedConfirmation = false
 
-    /// Hairline row separators, only between rows shown during onboarding --
-    /// normal Preferences stays as a denser Grid with no dividers.
-    @ViewBuilder
-    private var onboardingDivider: some View {
-        if isOnboarding {
-            GridRow {
-                Divider().gridCellColumns(2)
-            }
-        }
-    }
-
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-            GridRow {
-                HStack(spacing: 4) {
-                    Text("iCloud Sync")
-                        .foregroundStyle(Color.panelTextSecondary)
-                        .lineLimit(1)
-                    HelpTip("Keeps your to-do list in sync across every Mac you use, always both ways, via your own iCloud account -- not a third-party server.")
-                }
-                HStack(spacing: 6) {
+        SettingsForm {
+            // iCloud's status, its error and its manual trigger are one
+            // subject, so they sit in one group. Previously the status text was
+            // crammed into the same row as the toggle and the error landed in a
+            // label-less row below it, which read as an unrelated stray line.
+            Section("iCloud") {
+                LabeledContent {
                     Toggle("", isOn: $preferences.iCloudSyncEnabled)
                         .labelsHidden()
                         .disabled(!cloudSyncEngine.isAvailable)
@@ -43,81 +30,73 @@ struct PreferencesSyncTab: View {
                             guard !oldValue, newValue else { return }
                             Task { await cloudSyncEngine.sync() }
                         }
-                    if cloudSyncEngine.isSyncing {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else if preferences.iCloudSyncEnabled {
-                        Button("Sync Now") {
-                            Task { await cloudSyncEngine.sync() }
+                } label: {
+                    SettingLabel("Sync this Mac", "Keeps your to-do list in sync across every Mac you use, always both ways, via your own iCloud account -- not a third-party server.")
+                }
+
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        if cloudSyncEngine.isSyncing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else if preferences.iCloudSyncEnabled {
+                            Button("Sync Now") {
+                                Task { await cloudSyncEngine.sync() }
+                            }
                         }
-                        .controlSize(.small)
-                    }
-                    Spacer(minLength: 8)
-                    Text(cloudSyncEngine.accountStatusDescription)
-                        .font(Theme.secondary)
-                        .foregroundStyle(Color.panelTextSecondary)
-                }
-            }
-
-            if let lastSyncError = cloudSyncEngine.lastSyncError {
-                GridRow {
-                    Text("")
-                    Text(lastSyncError)
-                        .font(Theme.secondary)
-                        // panelDestructive rather than .red: it resolves per
-                        // appearance, where a raw .red vibrates against the
-                        // dark card.
-                        .foregroundStyle(Color.panelDestructive)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } else if let lastSyncSummary = cloudSyncEngine.lastSyncSummary {
-                GridRow {
-                    Text("")
-                    Text(lastSyncSummary)
-                        .font(Theme.secondary)
-                        .foregroundStyle(Color.panelTextSecondary)
-                }
-            }
-
-            onboardingDivider
-
-            GridRow {
-                Text("")
-                HStack(spacing: 4) {
-                    Button("Reminders Sync…", action: onOpenReminderSync)
-                    HelpTip("Optionally connects Squirrel Trap to a list in Apple's Reminders app, one-directional or both ways, your choice.")
-                }
-            }
-
-            onboardingDivider
-
-            GridRow {
-                Text("")
-                HStack(spacing: 8) {
-                    Button("Export Open Items") {
-                        let pasteboard = NSPasteboard.general
-                        pasteboard.clearContents()
-                        pasteboard.setString(intentStore.csvExport(), forType: .string)
-                        // This only ever copies to the clipboard, silently -- with
-                        // no confirmation it's indistinguishable from doing
-                        // nothing at all. Same fix as the update-check status.
-                        showCopiedConfirmation = true
-                        Task {
-                            try? await Task.sleep(for: .seconds(2))
-                            showCopiedConfirmation = false
-                        }
-                    }
-                    .help("Copies your open (not completed) items as CSV to the clipboard")
-                    if showCopiedConfirmation {
-                        Label("Copied", systemImage: "checkmark.circle")
-                            .font(Theme.secondary)
+                        Text(cloudSyncEngine.accountStatusDescription)
                             .foregroundStyle(Color.panelTextSecondary)
                     }
+                } label: {
+                    SettingLabel("Account")
+                }
+
+                if let lastSyncError = cloudSyncEngine.lastSyncError {
+                    // panelDestructive rather than .red: it resolves per
+                    // appearance, where a raw .red vibrates against the dark
+                    // card.
+                    Text(lastSyncError)
+                        .foregroundStyle(Color.panelDestructive)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let lastSyncSummary = cloudSyncEngine.lastSyncSummary {
+                    Text(lastSyncSummary)
+                        .foregroundStyle(Color.panelTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Section("Other Apps") {
+                LabeledContent {
+                    Button("Set Up…", action: onOpenReminderSync)
+                } label: {
+                    SettingLabel("Apple Reminders", "Optionally connects Squirrel Trap to a list in Apple's Reminders app, one-directional or both ways, your choice.")
+                }
+
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Button("Copy as CSV") {
+                            let pasteboard = NSPasteboard.general
+                            pasteboard.clearContents()
+                            pasteboard.setString(intentStore.csvExport(), forType: .string)
+                            // This only ever copies to the clipboard, silently -- with
+                            // no confirmation it's indistinguishable from doing
+                            // nothing at all. Same fix as the update-check status.
+                            showCopiedConfirmation = true
+                            Task {
+                                try? await Task.sleep(for: .seconds(2))
+                                showCopiedConfirmation = false
+                            }
+                        }
+                        if showCopiedConfirmation {
+                            Label("Copied", systemImage: "checkmark.circle")
+                                .foregroundStyle(Color.panelTextSecondary)
+                        }
+                    }
+                } label: {
+                    SettingLabel("Export open items", "Copies your open (not completed) items to the clipboard as CSV, ready to paste into a spreadsheet.")
                 }
             }
         }
-        .font(.system(size: 12))
         .onAppear { cloudSyncEngine.refreshAccountStatus() }
     }
 }
