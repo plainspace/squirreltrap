@@ -255,7 +255,14 @@ final class AppPreferences: ObservableObject {
     /// PromptPanelViewModel.addEntryApplyingDefaultAlarm. nil means no
     /// default, the pre-existing behavior.
     @Published var defaultColorTag: TodoColorTag? {
-        didSet { UserDefaults.standard.set(defaultColorTag?.rawValue, forKey: Keys.defaultColorTag) }
+        didSet {
+            UserDefaults.standard.set(defaultColorTag?.rawValue, forKey: Keys.defaultColorTag)
+            // Any assignment is a decision, including clearing it. Without this
+            // flag, clearing the default writes nil and the next launch cannot
+            // tell that apart from a fresh install, so the seeded blue would
+            // come back every time it was turned off.
+            UserDefaults.standard.set(true, forKey: Keys.hasChosenDefaultColorTag)
+        }
     }
 
     /// The panel's overall base/accent color pair (Preferences -> Appearance).
@@ -345,6 +352,7 @@ final class AppPreferences: ObservableObject {
         static let defaultAlarmEnabled = "defaultAlarmEnabled"
         static let defaultAlarmDurationSeconds = "defaultAlarmDurationSeconds"
         static let defaultColorTag = "defaultColorTag"
+        static let hasChosenDefaultColorTag = "hasChosenDefaultColorTag"
         static let panelTheme = "panelTheme"
         static let panelPosition = "panelPosition"
         static let analyticsEnabled = "analyticsEnabled"
@@ -465,7 +473,17 @@ final class AppPreferences: ObservableObject {
             defaultAlarmDurationSeconds = UserDefaults.standard.double(forKey: Keys.defaultAlarmDurationSeconds)
         }
 
-        defaultColorTag = UserDefaults.standard.string(forKey: Keys.defaultColorTag).flatMap(TodoColorTag.init(rawValue:))
+        // Defaults to blue rather than nil, matching the default panel theme, so
+        // the control shows a real colour on a fresh install instead of an
+        // empty ring. An empty ring reads as broken: there is nothing to
+        // compare it against, so it looks like a swatch that failed to load
+        // rather than a deliberate "no default". Clearing it is still one tap
+        // on the selected swatch, and that state is honoured on relaunch --
+        // hasChosenDefaultColorTag is what separates "never decided" from
+        // "decided on none", which a bare nil cannot express.
+        defaultColorTag = UserDefaults.standard.bool(forKey: Keys.hasChosenDefaultColorTag)
+            ? UserDefaults.standard.string(forKey: Keys.defaultColorTag).flatMap(TodoColorTag.init(rawValue:))
+            : .blue
         panelTheme = UserDefaults.standard.string(forKey: Keys.panelTheme).flatMap(PanelTheme.init(rawValue:)) ?? .blue
         panelPosition = UserDefaults.standard.string(forKey: Keys.panelPosition).flatMap(PanelPosition.init(rawValue:)) ?? .bottomLeft
         analyticsEnabled = UserDefaults.standard.bool(forKey: Keys.analyticsEnabled)
