@@ -134,6 +134,7 @@ final class PanelController: NSObject {
     // Sync setup keeps going to normal Preferences as usual.
     private var reminderSyncReturnsToOnboarding = false
     private var globalClickMonitor: Any?
+    private var resignKeyObserver: NSObjectProtocol?
     private var appActivationObserver: NSObjectProtocol?
     private var hasReclaimedFocusForCurrentShow = false
     // Sync only ever runs as a side effect of normal use — every Nth fresh
@@ -221,6 +222,9 @@ final class PanelController: NSObject {
     deinit {
         if let appActivationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
+        }
+        if let resignKeyObserver {
+            NotificationCenter.default.removeObserver(resignKeyObserver)
         }
         if let globalClickMonitor {
             NSEvent.removeMonitor(globalClickMonitor)
@@ -530,6 +534,7 @@ final class PanelController: NSObject {
         panel?.orderOut(nil)
         panel?.alphaValue = 1
         removeGlobalClickMonitor()
+        removeResignKeyObserver()
         stopActivityMonitoring()
         removeDismissKeyMonitor()
         onVisibilityChanged?(false)
@@ -580,6 +585,69 @@ final class PanelController: NSObject {
             NSEvent.removeMonitor(globalClickMonitor)
         }
         globalClickMonitor = nil
+    }
+
+    /// Once the panel has focus, losing it should close it.
+    ///
+    /// The global click monitor above catches the common case, but only that
+    /// case: an actual click somewhere else. Losing focus without a click --
+    /// Cmd+Tab onward to a third app, Spotlight, Mission Control, a
+    /// notification taking over -- left the panel sitting on screen with a
+    /// caret it no longer owns, which is exactly the "over my work" problem
+    /// this panel already tries not to be.
+    ///
+    /// Resigning key is a noisier signal than it looks, so two things guard it:
+    ///
+    /// 1. **A window of our own became key instead.** Every popover in this app
+    ///    (HelpTip, the color and reminder pickers), every confirmationDialog,
+    ///    and the app-exclusion NSOpenPanel is a separate window that takes key
+    ///    from the panel. Dismissing on those would make tapping a "?" close
+    ///    Preferences. If anything of ours holds key, this is not a blur.
+    /// 2. **The panel gets key straight back.** Presenting races with whatever
+    ///    app the Cmd+Tab gesture was leaving -- see reclaimKeyFocusIfVisible,
+    ///    which exists to win that race. Reacting synchronously here would
+    ///    close the panel during its own opening, so the decision is deferred
+    ///    and re-checked; if focus came back, nothing happened.
+    private func installResignKeyObserver() {
+        removeResignKeyObserver()
+        #if DEBUG
+        // Same reasoning as the global click monitor: in --show-panel mode the
+        // panel exists to be looked at, and must not vanish when the
+        // screenshotting script's own window takes focus.
+        if CommandLine.arguments.contains("--show-panel") { return }
+        #endif
+        resignKeyObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: panel,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handlePanelResignedKey()
+            }
+        }
+    }
+
+    private func removeResignKeyObserver() {
+        if let resignKeyObserver {
+            NotificationCenter.default.removeObserver(resignKeyObserver)
+        }
+        resignKeyObserver = nil
+    }
+
+    private func handlePanelResignedKey() {
+        // Guard 1, taken immediately: NSApp.keyWindow is already set to the
+        // window that took over by the time this notification lands, and a
+        // popover's window would be gone again by the time a delayed check ran.
+        if NSApp.keyWindow != nil { return }
+        guard let panel, panel.isVisible, !isShowingStickyContent, !suppressEscapeDismiss else { return }
+
+        // Guard 2: let the presentation race settle before believing the blur.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self, let panel = self.panel, panel.isVisible else { return }
+            guard !panel.isKeyWindow, NSApp.keyWindow == nil else { return }
+            guard !self.isShowingStickyContent, !self.suppressEscapeDismiss else { return }
+            self.hidePanel()
+        }
     }
 
     /// A local monitor only sees events routed to our own app's windows, which is
@@ -985,10 +1053,12 @@ final class PanelController: NSObject {
         panel.makeKeyAndOrderFront(nil)
         if isShowingStickyContent {
             removeGlobalClickMonitor()
+            removeResignKeyObserver()
             stopActivityMonitoring()
             removeDismissKeyMonitor()
         } else {
             installGlobalClickMonitor()
+            installResignKeyObserver()
             startActivityMonitoring()
             installDismissKeyMonitor()
         }

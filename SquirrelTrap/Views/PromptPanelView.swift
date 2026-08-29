@@ -144,6 +144,23 @@ struct PromptPanelView: View {
         // for them existed here and could never fire. Favouriting and deleting
         // stay mouse actions until there is a modifier combination the field
         // does not eat. Return is handled on the field itself, via onSubmit.
+        // Escape is handled here as well as through onExitCommand and the
+        // AppKit-level monitor. A focused NSTextField treats Escape as its own
+        // cancel and can consume it before either of those sees it, which left
+        // the one key everyone reaches for doing nothing while the field had
+        // focus, which is almost always.
+        //
+        // A row selection is cleared first and the panel stays up: Escape means
+        // "back out of what I am doing", and when something is selected that is
+        // the selection, not the panel.
+        .onKeyPress(.escape) {
+            if viewModel.selectedEntryID != nil {
+                viewModel.clearSelection()
+            } else {
+                onEscape()
+            }
+            return .handled
+        }
         .onKeyPress(.upArrow) {
             viewModel.selectPrevious()
             return .handled
