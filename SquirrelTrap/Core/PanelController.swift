@@ -1097,22 +1097,23 @@ final class PanelController: NSObject {
     /// card-to-screen-edge distance rather than a window-to-edge one.
     private let screenEdgeInset: CGFloat = 24
 
-    /// Anchors to the bottom-left of whichever display currently has the mouse
-    /// cursor — the cursor being the best proxy for "which screen the user is
-    /// looking at" mid keyboard-switch.
+    /// Places the panel on whichever display currently has the mouse cursor —
+    /// the cursor being the best proxy for "which screen the user is looking
+    /// at" mid keyboard-switch — at the corner chosen in Preferences.
     ///
-    /// Bottom-*left* specifically: the bottom-right corner is where macOS puts
-    /// its own transient surfaces (Notes' floating new-note window, notification
-    /// banners), so the left corner is the one that stays free. Cornering it also
-    /// keeps the panel off the middle of the screen, where it covered whatever
-    /// the switch was in service of.
+    /// Which corner is out of the way is genuinely personal, so it is a setting
+    /// (see PanelPosition, which carries the reasoning behind the bottom-left
+    /// default). `visibleFrame`, not `frame`, so the menu bar and Dock are
+    /// excluded and a corner is a corner of the usable area.
     private func positionOnActiveScreen(_ panel: NSPanel) {
         let mouseLocation = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(mouseLocation) } ?? NSScreen.main
         let screenFrame = screen?.visibleFrame ?? .zero
-        let origin = NSPoint(
-            x: screenFrame.minX + screenEdgeInset - cardMargin,
-            y: screenFrame.minY + screenEdgeInset - cardMargin
+        let origin = preferences.panelPosition.origin(
+            in: screenFrame,
+            cardSize: cardSize,
+            margin: cardMargin,
+            inset: screenEdgeInset
         )
         panel.setFrame(NSRect(origin: origin, size: windowSize), display: false)
     }

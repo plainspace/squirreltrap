@@ -20,6 +20,71 @@ enum ReminderSyncDirection: String, CaseIterable {
     var pullEnabled: Bool { self == .pullOnly || self == .bidirectional }
 }
 
+/// Where the panel appears on screen (Preferences -> Appearance).
+///
+/// Upstream centers it. This fork defaults to the bottom-left corner instead:
+/// centered, the panel lands on top of whatever the Cmd+Tab was in service of,
+/// and the bottom-*right* is where macOS puts its own transient surfaces
+/// (Notes' floating new-note window, notification banners), so the left corner
+/// is the one that stays free.
+///
+/// That is a default, not a verdict -- which corner is out of the way depends
+/// on where someone keeps their windows, and centered is the right answer for
+/// anyone who wants the panel to be unmissable.
+enum PanelPosition: String, CaseIterable, Identifiable {
+    case bottomLeft
+    case bottomRight
+    case topLeft
+    case topRight
+    case center
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .bottomLeft: return "Bottom Left"
+        case .bottomRight: return "Bottom Right"
+        case .topLeft: return "Top Left"
+        case .topRight: return "Top Right"
+        case .center: return "Center"
+        }
+    }
+
+    /// Where the panel's card sits within `screenFrame`.
+    ///
+    /// Takes the *card* size and the shadow gutter separately rather than the
+    /// window size, because the window is larger than the card by `margin` on
+    /// every side. Insetting the window would make the visible gap to the
+    /// screen edge smaller than asked for on two sides and, on the other two,
+    /// leave the card floating short of where it was aimed.
+    func origin(
+        in screenFrame: NSRect,
+        cardSize: NSSize,
+        margin: CGFloat,
+        inset: CGFloat
+    ) -> NSPoint {
+        let minX = screenFrame.minX + inset - margin
+        let maxX = screenFrame.maxX - inset - cardSize.width - margin
+        let minY = screenFrame.minY + inset - margin
+        let maxY = screenFrame.maxY - inset - cardSize.height - margin
+
+        switch self {
+        case .bottomLeft: return NSPoint(x: minX, y: minY)
+        case .bottomRight: return NSPoint(x: maxX, y: minY)
+        case .topLeft: return NSPoint(x: minX, y: maxY)
+        case .topRight: return NSPoint(x: maxX, y: maxY)
+        case .center:
+            return NSPoint(
+                x: screenFrame.midX - (cardSize.width / 2) - margin,
+                // Optically centered, not arithmetically: a surface placed on
+                // the exact vertical middle reads as sitting slightly low. The
+                // convention is to lift it by a small fraction of the height.
+                y: screenFrame.midY - (cardSize.height / 2) - margin + (screenFrame.height * 0.05)
+            )
+        }
+    }
+}
+
 @MainActor
 final class AppPreferences: ObservableObject {
     @Published var showMenuBarIcon: Bool {
@@ -199,6 +264,13 @@ final class AppPreferences: ObservableObject {
         didSet { UserDefaults.standard.set(panelTheme.rawValue, forKey: Keys.panelTheme) }
     }
 
+    /// Which corner (or the middle) the panel opens at -- see PanelPosition.
+    /// Only read when the panel opens fresh, so changing it does not yank a
+    /// panel you are currently looking at across the screen.
+    @Published var panelPosition: PanelPosition {
+        didSet { UserDefaults.standard.set(panelPosition.rawValue, forKey: Keys.panelPosition) }
+    }
+
     /// Opt-in, off by default — single-Mac users don't need this.
     @Published var iCloudSyncEnabled: Bool {
         didSet { UserDefaults.standard.set(iCloudSyncEnabled, forKey: Keys.iCloudSyncEnabled) }
@@ -274,6 +346,7 @@ final class AppPreferences: ObservableObject {
         static let defaultAlarmDurationSeconds = "defaultAlarmDurationSeconds"
         static let defaultColorTag = "defaultColorTag"
         static let panelTheme = "panelTheme"
+        static let panelPosition = "panelPosition"
         static let analyticsEnabled = "analyticsEnabled"
         static let hasAskedAnalyticsConsent = "hasAskedAnalyticsConsent"
         static let iCloudSyncEnabled = "iCloudSyncEnabled"
@@ -394,6 +467,7 @@ final class AppPreferences: ObservableObject {
 
         defaultColorTag = UserDefaults.standard.string(forKey: Keys.defaultColorTag).flatMap(TodoColorTag.init(rawValue:))
         panelTheme = UserDefaults.standard.string(forKey: Keys.panelTheme).flatMap(PanelTheme.init(rawValue:)) ?? .blue
+        panelPosition = UserDefaults.standard.string(forKey: Keys.panelPosition).flatMap(PanelPosition.init(rawValue:)) ?? .bottomLeft
         analyticsEnabled = UserDefaults.standard.bool(forKey: Keys.analyticsEnabled)
         hasAskedAnalyticsConsent = UserDefaults.standard.bool(forKey: Keys.hasAskedAnalyticsConsent)
 
