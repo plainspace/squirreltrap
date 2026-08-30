@@ -22,9 +22,15 @@ struct PreferencesGeneralTab: View {
 
     @State private var showingClearCompletedConfirm = false
     @State private var showingClearAllConfirm = false
+    @State private var isPickingApp = false
+    @State private var hoveredExclusion: String?
 
+    /// Anything modal sitting over the panel. The open panel counts as much as
+    /// the confirmation dialogs do: while one is up the panel sees no events,
+    /// so its inactivity countdown has to be paused or it dismisses itself out
+    /// from under whatever you are doing.
     private var hasActiveConfirmation: Bool {
-        showingClearCompletedConfirm || showingClearAllConfirm
+        showingClearCompletedConfirm || showingClearAllConfirm || isPickingApp
     }
 
     /// The excluded-apps control: the apps currently ignored, plus a picker to
@@ -35,43 +41,93 @@ struct PreferencesGeneralTab: View {
     /// typo produces a rule that silently never matches, which is the worst
     /// possible failure for a setting whose entire job is to NOT do something.
     private var excludedApps: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if preferences.excludedBundleIDs.isEmpty {
-                Text("None")
-                    .foregroundStyle(Color.panelTertiary)
-            } else {
-                ForEach(preferences.excludedBundleIDs.sorted(), id: \.self) { bundleID in
-                    HStack(spacing: 6) {
-                        Text(Self.displayName(for: bundleID))
-                            .foregroundStyle(Color.panelTextPrimary)
-                            .lineLimit(1)
-                            // The bundle ID stays reachable on hover, since two
-                            // installed copies of an app share a display name.
-                            .help(bundleID)
-                        Button {
-                            preferences.excludedBundleIDs.remove(bundleID)
-                        } label: {
-                            Image(systemName: "xmark")
-                        }
-                        .buttonStyle(.ghostIcon(size: 10, hoverTint: .panelDestructive))
-                        .accessibilityLabel("Stop ignoring \(Self.displayName(for: bundleID))")
-                    }
-                }
+        VStack(alignment: .trailing, spacing: 4) {
+            // Sorted by display name, not bundle ID. Sorting by identifier put
+            // Chrome under "c-o-m", which is the same order for everything and
+            // therefore no order at all to anyone reading the list.
+            ForEach(excludedAppsSortedByName, id: \.bundleID) { app in
+                excludedAppRow(app)
             }
 
-            Button("Add App…") { addExcludedApp() }
-                .controlSize(.small)
+            Button(preferences.excludedBundleIDs.isEmpty ? "Choose Apps…" : "Add…") {
+                addExcludedApp()
+            }
+            .controlSize(.small)
         }
+        // Keeps the button under the rows rather than letting the group grow to
+        // whatever the widest app name happens to be.
+        .frame(maxWidth: 190, alignment: .trailing)
     }
 
-    /// Resolves a bundle ID back to a readable name, falling back to the ID
-    /// itself when the app is not installed any more. An exclusion for an app
-    /// you have since deleted is harmless, so it is shown rather than dropped.
-    private static func displayName(for bundleID: String) -> String {
-        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-            return bundleID
+    /// An excluded app: its real icon, its name, and a remove control that only
+    /// appears under the pointer.
+    ///
+    /// The icon is the point. A list of app names is a list of strings you have
+    /// to read; a list of app icons is recognisable at a glance, and these are
+    /// apps the reader already knows by sight from their own Dock. It also
+    /// disambiguates for free where the name cannot: two installed copies of an
+    /// app share a display name, and the icon usually differs.
+    private func excludedAppRow(_ app: ExcludedApp) -> some View {
+        HStack(spacing: 6) {
+            if let icon = app.icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 16, height: 16)
+            } else {
+                // An app that has since been uninstalled. The exclusion is
+                // harmless, so it is shown rather than silently dropped, but it
+                // gets a placeholder instead of a missing-image gap.
+                Image(systemName: "questionmark.app.dashed")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.panelTertiary)
+                    .frame(width: 16, height: 16)
+            }
+
+            Text(app.name)
+                .foregroundStyle(Color.panelTextPrimary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer(minLength: 0)
+
+            Button {
+                preferences.excludedBundleIDs.remove(app.bundleID)
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.ghostIcon(size: 9, hoverTint: .panelDestructive))
+            .opacity(hoveredExclusion == app.bundleID ? 1 : 0)
+            .accessibilityLabel("Stop ignoring \(app.name)")
         }
-        return FileManager.default.displayName(atPath: url.path)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .fill(hoveredExclusion == app.bundleID ? Color.panelSurfaceRaised : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { hoveredExclusion = $0 ? app.bundleID : nil }
+        // The identifier stays reachable without spending a line on it.
+        .help(app.bundleID)
+    }
+
+    private struct ExcludedApp {
+        let bundleID: String
+        let name: String
+        let icon: NSImage?
+    }
+
+    private var excludedAppsSortedByName: [ExcludedApp] {
+        preferences.excludedBundleIDs
+            .map { bundleID -> ExcludedApp in
+                let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+                return ExcludedApp(
+                    bundleID: bundleID,
+                    name: url.map { FileManager.default.displayName(atPath: $0.path) } ?? bundleID,
+                    icon: url.map { NSWorkspace.shared.icon(forFile: $0.path) }
+                )
+            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     private func addExcludedApp() {
@@ -92,6 +148,17 @@ struct PreferencesGeneralTab: View {
         // cannot take keyboard focus even once it is on top.
         NSApp.activate(ignoringOtherApps: true)
         panel.level = .modalPanel
+
+        // Reported up before runModal, not after: runModal blocks here for as
+        // long as the picker is open, and the panel's inactivity countdown has
+        // to already be paused by then. Cleared in a defer so an abandoned
+        // picker restarts it too.
+        isPickingApp = true
+        onConfirmationActiveChanged(hasActiveConfirmation)
+        defer {
+            isPickingApp = false
+            onConfirmationActiveChanged(hasActiveConfirmation)
+        }
 
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {

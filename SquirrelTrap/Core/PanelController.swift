@@ -441,7 +441,7 @@ final class PanelController: NSObject {
                     onBack: { [weak self] in self?.showPromptPanel() },
                     onDismiss: { [weak self] in self?.hidePanel() },
                     onQuit: { [weak self] in self?.onQuit?() },
-                    onConfirmationActiveChanged: { [weak self] active in self?.suppressEscapeDismiss = active },
+                    onConfirmationActiveChanged: { [weak self] active in self?.setModalContentActive(active) },
                     onOpenReminderSync: { [weak self] in self?.showReminderSyncPreferencesPanel() },
                     onSnooze: { [weak self] in self?.snoozeAndFadeOut() }
                 )
@@ -734,6 +734,29 @@ final class PanelController: NSObject {
         localActivityMonitor = nil
         dismissTimer?.invalidate()
         dismissTimer = nil
+    }
+
+    /// Something modal is up over the panel: a confirmation dialog, or the
+    /// open panel that picks an app to ignore.
+    ///
+    /// All THREE dismissal paths have to pause, not just Escape. A modal takes
+    /// every event, so the local activity monitor sees nothing and the
+    /// inactivity countdown keeps running while you are reading a dialog or
+    /// browsing Applications; a Timer whose fire date passes during a nested
+    /// modal run loop fires the moment that loop exits, which is why picking an
+    /// app made Preferences vanish immediately afterwards. And the open panel
+    /// takes key from our panel, which the blur-dismiss watches for.
+    ///
+    /// Clearing it restarts the countdown from full rather than resuming it,
+    /// since dismissing a dialog is itself a sign you are still here.
+    private func setModalContentActive(_ active: Bool) {
+        suppressEscapeDismiss = active
+        if active {
+            dismissTimer?.invalidate()
+            dismissTimer = nil
+        } else if let panel, panel.isVisible, !isShowingStickyContent {
+            registerActivity()
+        }
     }
 
     /// Resets the countdown to the full (user-configurable) timeout.
